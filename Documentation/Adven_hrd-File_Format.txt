@@ -1,0 +1,803 @@
+Adventure Construction Set
+Adventure File Format
+==========================
+
+This document records research into the format of the ACS
+"adventure file".  The information in it was gathered by
+creating a blank "fantasy" adventure, copying the ADVEN.HRD
+file elsewhere, making a slight change to it in the ACS editor,
+then comparing the new ADVEN.HRD to the previous copy using
+the Windows command
+
+	fc /b ADVEN.HRD ADVEN-Copy.hrd
+
+then examining each group of changed bytes in a hex editor.
+
+
+
+Scenario Type: Fantasy
+
+Images
+------
+
+Images are 16 x 16, and can use a palette of four colors,
+by default, black, white, blue, and brown.
+A palette slot can be filled by any of 16 colors,
+which perhaps correspond to old console colors.
+
+Terrain Pictures (or Things & Creatures)
+0	Water
+1	Plain
+2	Swamp
+3	Desert
+4	Dense Forest
+5	Forest
+6	Chapparal?
+7	Fields
+8	Mountains
+9	Foothills
+10	River
+11	High Mountains
+12	Gateway
+13	Parapet Gateway
+14	Castle
+15	Old Church
+
+Thing Pictures (or Terrain and Creatures)
+
+Chest
+Hut
+Door
+Stone Wall
+Heap?
+Chair
+Helmet
+Ring
+Painting
+Key
+Person with Skirt
+Marble?
+
+[row break]
+
+Dart?
+Shield
+Crown
+Axe
+Trident
+Dagger
+Sword
+Goblet
+Bow
+Carpet
+Pot?
+Chair2
+Scroll
+Wand?
+Oil Lamp
+Steps
+Bed
+Table
+Flowers?
+Ham?  Flask?
+Bottle
+Ladder
+Torch
+Red Cross
+
+[row]
+
+Lantern
+Armor
+Crossbow
+Bowl of Fruit
+Pack?
+Snake?
+Horse
+Banner?
+Eye
+Candelabra
+?
+Heiroglyphs
+
+
+Creature Pictures (Only)
+
+King
+Lady
+Giant
+Wizard
+Ghost
+Swordsman
+Jester
+Snake
+Crone
+Vizier
+Gryphon
+Devil
+
+[row]
+
+Bee
+Lady2
+Thief
+Troubadour
+Goblin?
+Priest
+Rogue?
+Man in Peaked Hat
+Dragon
+Witch
+Caveman
+Bird
+
+[row]
+
+Troll?
+Bat
+Troll2?
+Golem?
+Centaur
+Mermaid
+Tree Creature
+Merman
+Man with Amulet
+Fairy
+Spider
+Rat
+Eyeball with Tentacles
+Lion?
+Rock
+Pegasus
+Snake2
+Fire Spirit?
+Unicorn
+Minotaur
+Skeleton
+Skull
+
+
+
+
+Things
+------
+
+Types
+-----
+
+Code	Name
+----	----
+Ar		Armor
+Ma		Magic Item
+Me		Melee Weapon
+Mi		Missile Weapon
+Sp		Magic Spell
+Tr		Treasure
+
+Number	Type	Name
+------	----	----
+1		Mi 		Oil and Wick
+2		Me		Dagger
+3 		Mi		Blessed Water
+
+[4]
+
+5		Ma		Food Container
+6		Tr		Jewel Packet
+7		Tr		Diamond Packet
+8		Me		Horn
+9		Me		Fang Attack
+10		Me		Hoof
+11		Me		Claw
+12		Me		Hand
+13		Me		Stone Touch
+14		Mi		Firebreathing
+15 		Mi		Stone Gaze
+16		Mi		Cry of Undead
+17		Ar		Thick Scales
+18		Ar		Thick Skin
+19		Ma		Magic Lamp
+20		Tr		Crown of Kaunas
+21		Ma		Poison
+22		Tr		Kdnp'd Princess
+
+[23-32]
+
+33		Ar		Scroll
+34		Me		Magic Sword
+35		Tr		Horse
+36		Ma		Potion
+37		Me		Battle Axe
+38		Me		Long Sword
+39		Me		Flail
+40		Me		Mace
+41		Me		Short Sword
+42		Me		Club
+43		Me		Trident
+44		Mi		Crossbow
+45		Mi		Spear
+46		Mi		Magic Bow
+47		Mi		Bow-Silver Arr.
+48		Mi		Bow and Arrow
+49		Ar		Plate Mail
+50		Ar		Chain Mail
+51		Ar		Heavy Shield
+52		Ar		Leather Armor
+53		Ar		Light Shield
+54		Ar		Helmet
+55 		Ma		Magic Ring
+56		Ma		Shield of Honor
+57		Ma		Scroll
+58		Sp		Blessing
+59		Sp		Curse
+60		Sp		Weakness
+61		Sp		Flight
+62		Sp		Give Armor
+63		Sp		Give Weapon
+64		Sp		Life
+65		Sp		Speed
+66		Sp		Swim
+67		Ma		Potion
+68		Ma		Scroll
+69		Ma		Magic Wand
+70		Ma		Magic Ring
+71		Ma		Magic Staff
+72		Ma		Magic Wand
+73		Tr		Key
+74		Tr		Rope
+75		Tr		Lantern
+76		Tr		Magic Bag
+77		Tr		Packet
+78		Me		Deadly Touch
+79		Me		Acid Touch
+80		Sp		Do nothing
+81		Tr		Gold
+
+
+Thing Editing
+-------------
+1 - Oil and Wick
+
+Beings
+------
+
+Types
+-----
+1	PF	Persons-Friends
+2	PE	Persons-Enemies
+3	PN	Persons-Neutral
+4	PT	Persons-Thieves
+5	BH	Beasts-Hostile
+6	BN	Beasts-Neutral
+7	EB	Evil Beings
+8	YN	Your New Idea
+
+Id	Name			Type
+--	----			----
+1	Achilles		PF
+2	Ali Baba		PF
+3	Centaur			PN
+4	Assassin		PE
+5	Berserker		PE
+6	Bugbear			PE
+7	Adept			PN
+8	Bandit			PT
+9	Banshee			EB
+10	Troubadour		PT
+11	Basilisk		BH
+12	Bear			BH
+13	Callisto		PE
+14	Chestmonster	BH
+15	Chimera			BH
+16	Cleric			PN
+17	Evil Cleric		PE
+18	Conquistador	PE
+19	Cyclops			PE
+20	Demon			EB
+21	Doppleganger	PE
+22	Dragon			BH
+23	Druid			PN
+24	Dryad			PN
+25	Dwarf			PN
+26	Eagle			BN
+27	Elf				PN
+28	Floating Eye	BH
+29	Ghost			EB
+30	Ghoul			EB
+31	Giant			PE
+32	Gnome			PN
+33	Goblin			PE
+34	Golem			EB
+35	Gorgon			BH
+37	Grue			BH
+38	Guard			PE
+39	Guard Captain	PE
+40	Halfling		PN
+41	Harpy			BH
+43	Hippocampus		BN
+45	Hydra			BH
+42	Heracles		PF
+44	Hobgoblin		PE
+46	Hyena Man		PE
+47	Conjurer		PN
+48	King			PN
+49	King Arthur		PF
+50	Knight			PN
+51	Kobold			PE
+52	Leprechaun		PT
+53	Lion			BH
+54	Lizoid			PE
+55	Llorona			EB
+56	Magician		PN
+57	Evil Magician	PE
+58	Medusa			PE
+59	Merchant		PN
+60	Merlin			PF
+61	Mermaid			PN
+62	Minotaur		EB
+63	Outcast Monk	PT
+64	Mummy			EB
+65	Odysseus		PF
+66	Ogre			PE
+67	Orc				PE
+68	Lone Paladin	PN
+69	Pegasus			BN
+70	Pixie			PN
+71	Ranger			PN
+72	Giant Rat		BH
+73	Roc				BH
+74	Salamander		EB
+75	Samurai			PN
+76	Satyr			PN
+77	Siren			EB
+78	Sir Lancelot	PF
+79	Skeleton		EB
+80	Slime			BH
+81	Giant Snake		BH
+82	Specter			EB
+83	Sphinx			BN
+84	Giant Spider	BH
+85	Sprite			PN
+86	Stonestalker	EB
+87	Thief			PT
+88	Treeman			PN
+89	Triton			PN
+90	Troll			PE
+91	Unicorn			BN
+92	Vampire			EB
+93	Vulture Boulder	BH
+94	Warrior			PN
+95	Giant Werebee	BH
+96	Werewolf		EB
+97	Wight			EB
+98	Giant Worm		BH
+99	Wraith			EB
+100	Zombie			EB
+101	Wallmonster		BH
+
+Terrains
+--------
+
+Number	Name				Symbol		Notes
+------	----				------		-----
+
+1		Water				~
+2		Plains				.
+3		Swamp				s
+4		Desert				d
+5		Dense Forest		F
+6		Forest				f
+7		Chapparal			c
+8		Fields				=
+9		Mountains			m
+10		Foothills			h
+11		River				r
+12		High Mountains		M
+13		Gateway				g			Must specify "door destination".
+14		Parapet Gateway		G			"
+15		Castle				C			"
+16		Old Church			t			"
+
+By default, only Water is impassable,
+and other terrains are "open to all".
+
+In the demo,
+River has been made open to owners of the spell "Swim" (66),
+while the High Mountains are passable to owners of the spell "Flight" (61).
+
+
+Terrain Passability Options
+---------------------------
+
+Number	Description ("Which...")
+------	------------------------
+1		...is impassable terrain.
+2		...is open to travel by all.
+3		...is only open to owners of object-spell [thing]
+4		...triggers the spell [magic spell]
+
+
+Demo World Map
+--------------
+
+Name: WORLDMAP
+
+Size is 40 by 40, which is 1600 cells.
+
+Player entry point is 0x1.
+
+Movement off the edge of map is not permitted, which is the default.
+
+The "door destinations" for the g, G, C, and t cells
+are all 1 cell south of the door terrain itself.
+
+~.sdFfc=mhrMgGCt.~.~.~.~.~.~.~.~.~.~.~.~
+........................................
+~.......................................
+........................................
+~.......................................
+........................................
+~.......................................
+........................................
+~.......................................
+........................................
+~.......................................
+........................................
+~.......................................
+........................................
+~.......................................
+........................................
+~.......................................
+........................................
+~.......................................
+........................................
+~.......................................
+........................................
+~.......................................
+........................................
+~.......................................
+........................................
+~.......................................
+........................................
+~.......................................
+........................................
+~.......................................
+........................................
+~.......................................
+........................................
+~.......................................
+........................................
+~.......................................
+........................................
+~.......................................
+........................................
+
+
+Map Creatures
+-------------
+8 Slots
+
+Slot 1 - Achilles
+
+	Appearing in Dense Forest
+
+	Traits
+
+		[Image: Guy with Sword]
+
+		Constitution	27> 	28		1-63 (6 bits)
+		Wisdom			13		15		0-31 (5 bits)
+		Strength		16>		19		0-31
+		Dexterity		15		19		0-31
+		Missile Skill	44>		49		0-127 (7 bits)
+		Melee Skill		67>		73		0-127
+
+		Wealth			500>	516		0-25000 (15 bits)
+
+		Life Force		27>		35		1-63
+		Power			13		22		0-127
+		Size			11		21		0-31
+		Armor Skill		20		31		0-127
+		Dodge Skill		34		46		0-127
+		Parry Skill		38		51		0-127
+
+		Speed			7		8		0-15
+
+		Only magic weapons do damage
+		Readied Weapon: Spear
+		Readied Armor: Scroll
+		Strategy: Brave Agressive Friends
+		Will Not Mimic All Powers of its Victim
+
+		Possessions
+			Dagger
+			Food Container (3)
+			Claw
+			Hand
+			Scroll (Armor)
+			Horse
+			Short Sword
+			Spear
+			Leather Armor
+			Helmet
+
+		Appears 2 per cent of the time
+
+W.P.S.D.F
+
+Field				Offset				Length	Values 					Notes
+-----				------				------	-----					-----
+thing 1
+	name			0x1b800-09			10		ABCDEFGHIJKLMNO			?
+	ct. generated	0x1c000.hi			4bits	0-14 + infinite			?
+	power			0x1c087				?		0-31					?
+	range			0x1c087.hi5?		1		0-31					?
+	attack adj.		0x1c088.hi?			? 		-35% to 40% x 5%
+	chance break	0x1c088.lo?			?		0% - 15%
+	is magic		0x1c089.hi.1		1 bit	?
+	only owner uses 0x1c089.hi.2		1 bit	?
+	picture			0x1c089.low6?		6 bits?	?						?
+	dies on use		0x1bd00.hi.lowest	1 bit	?
+	weight			0x1bd00-1?			2?		-5000 to 5000			?
+	value			0x1bd02				2		0 to 5000				?
+	max held?									always 3 for missile weapons?
+
+adventure name 		0x1c200-1c213		20		?						Padded with spaces.
+author				0x1c214-1c227		20		?						"
+message 1 of 254	0x06c00-06d00		0x100	?						"
+message 2 of 254	0x16900				0x100	?						"
+intro message		0x16a00				0x100	?						"
+musical theme id	0x1c56e				1		00 (fantasy), 01 (spy)	?
+world map name		0x1c42d-1c441		?		?						"
+date/time saved?	0x1c600-01			2		?						Changes every save.
+world map terrain?	0x1c700				?		?						?
+world map wraps		0x1c42c				1		01 (wrap)				?
+start point x,y		0x1c7a0-1			2		0, 0 NW corner			?
+monster attrib?		0x1cb0a-2b			?		?						?
+	const			0x1cb0a.0-5
+	?
+	wisdom			0x1cb1b.0-4
+	?
+monster terrain		0x1cd5a.hi			?		1(plain), 4(dforest)	?
+monster percent		0x1cd5a.lo			?		2% = 1, 4% = 2, etc.	?
+?					0x1ce52-57			?
+
+
+Regions
+-------
+
+Added new region "RegionRegionRegion12",
+with no rooms.
+It modified like 50ish bytes
+in various places.
+
+Field			Offset			Size		Values			Notes
+-----			------			----						-----
+Region Count?	0x1C229			1 byte		
+Region Name		0x1C441-454		20 bytes
+?				0x1D301-308		8 bytes
+?				0x1D885-1D8A3	?			All 0002's.		Skips every other byte.
+
+
+Rooms
+-----
+Added a room of default size (3x3?)
+to RegionRegionRegion12,
+at the default cursor position,
+named RoomRoomRoom123 (I think).
+Its auto-assigned ID, from the UI, seems to be 16.
+That modified like 18-20 bytes.
+There seemed to be a lot of bytes in the middle already.
+
+Field			Offset			Size		Values			Notes
+-----			------			----		-------			-----
+Room count? ID?	0x1d300			1 bytes		1
+				0x1D309-C		4 bytes		13 22 27 13
+Name?			0x1D6F3-C		10 bytes	E7 72 1F 54 DA
+											5F 25 60 3D AD
+
+I temporarily changed the room name to roomroomroom122,
+and then this was different:
+
+	0001D6FB: 3D 3C
+
+Rooms have
+random creatures,
+resident creatures,
+and "contents".
+
+A room has 8 Random Creature slots.
+"A master table creature"
+I added "1-Achilles",
+with a 5/75 (x5) percent chance of appearing.
+I also added a "Banshee",
+and it seems that you can't delete it
+once you've added one.
+So I rolled that back
+and re-made the Achilles.
+Here's the diff:
+
+0001D30D: 00 01 // creature number?
+0001D37B: 00 9B // attributes?
+0001D37C: 00 10
+0001D37D: 00 0F
+0001D37E: 00 1B
+0001D37F: 00 F7
+0001D380: 00 8D
+0001D381: 00 22
+0001D382: 00 26
+0001D383: 00 14
+0001D384: 00 43
+0001D385: 00 2C
+0001D38A: 00 0B
+0001D38C: 00 0D
+0001D38D: 00 F4
+0001D38E: 00 01 // Chance of appearance?
+0001D38F: 00 2D
+0001D390: 00 21
+0001D391: 00 47
+0001D392: 00 10
+0001D393: 00 C0
+0001D394: 00 01 // Chance of appearance?
+0001D39A: 00 A0
+0001D39B: 00 88
+0001D39C: 00 14
+0001D793: 00 C0
+0001D794: 00 06
+0001D795: 00 2C
+0001D796: 00 3A
+0001D797: 00 38
+0001D798: 00 22
+
+
+The room layout has:
+
+wall picture
+add many things
+add one thing
+delete thing
+examine room
+add creature
+
+
+Presumably this is the same format
+as for the wandering monsters on the world map?
+
+Images
+------
+
+Changing a single pixel on the first image ("water"),
+namely, adding a blue pixel at the lower right,
+changes 13 bytes in the file,
+and they're pretty unpredictable.
+Some sort of compression encoding going on?
+Doesn't seem to matter much where the pixel goes,
+it's always a lot of bytes changed.
+Actually, it's not clear that I can even undo it!
+
+
+Text String Encodings
+---------------------
+
+A lot of stuff is in ASCII,
+like the adventure, author, and region names,
+but the names of rooms, things, and possibly creatures,
+are not in ASCII.
+All these chars are supported:
+abcdefghijklmnopqrstuvwxyz
+0123456789
+!@#$%^&*()
+`~-_=+[]{}
+,<.>;:'"/?
+\|
+At least 68 chars are supported.
+that's more than 6 bits!
+
+Changing thing 1's name from "Oil and Wick" to "Pil and Wick"
+causes these changes:
+
+0001B800: 34 74
+			0011 0100
+			0111 0100
+0001B801: 5F 65
+			0101 1111
+			0110 0101
+
+Changing it from "Oil and Wick" to "Nil and Wick"
+causes these changes:
+
+0001B800: 34 F4
+			0011 0100
+			1111 0100
+0001B801: 5F 58
+			0101 1111
+			0101 1000
+
+In order, changes go from NIL to PIL:
+
+		0x1b800    0x1b801
+AIL		1011 0100  0000 0111
+BIL		1111 0100  0000 1101
+CIL		0011 0100  0001 0100
+DIL		0111 0100  0001 1010
+EIL		1011 0100  0010 0000
+FIL		1111 0100  0010 0110
+GIL		0011 0100  0010 1101
+
+JIL		1111 0100  0011 1111
+KIL		0011 0100  0100 0110
+LIL		0111 0100  0100 1100
+MIL		1011 0100  0101 0010
+NIL		1111 0100  0101 1000
+OIL		0011 0100  0101 1111
+PIL		0111 0100  0110 0101
+
+
+Let's try reversing the byte order?
+
+		0x1b801    0x1b800    
+AIL		0000 0111  1011 0100
+BIL		0000 1101  1111 0100
+CIL		0001 0100  0011 0100
+DIL		0001 1010  0111 0100
+EIL		0010 0000  1011 0100
+FIL		0010 0110  1111 0100
+GIL		0010 1101  0011 0100
+
+JIL		0011 1111  1111 0100
+KIL		0100 0110  0011 0100
+LIL		0100 1100  0111 0100
+MIL		0101 0010  1011 0100
+NIL		0101 1000  1111 0100
+OIL		0101 1111  0011 0100
+PIL		0110 0101  0111 0100
+
+The least significant bits of some letter seem to be the left two.
+The right six bits of the first byte have not changed yet,
+nor has the one after it.
+Those are binary 1101000,
+which is hex 68,
+which is decimal 96 + 8 = 104
+ascii for that is 'h',
+which isn't anything in "oil and wick'
+
+Okay... let's try... reversing the BIT order
+of the reversed bytes?
+
+		0x1b801    0x1b800    
+AIL		1110 0000  0010 1101
+BIL		1011 0000  0010 1111
+CIL		0010 1000  0010 1100
+
+I don't see anything there either.
+What about reversing the bits
+of the non-reversed bytes?
+
+		0x1b800    0x1b801
+AIL		0010 1101  1110 0000
+BIL		0010 1111  1011 0000
+CIL		0010 1100  0010 1000
+DIL		0010 1110  0101 1000
+
+Nothing.  Reverse those?
+
+AIL		0000 0111  1011 0100
+BIL		0000 1101  1111 0100
+CIL		0001 0100  0011 0100
+DIL		0001 1010  0111 0100
+
+Now cut off the ends?
+
+AIL		0 0111  101
+BIL		0 1101  111
+CIL		1 0100  001
+DIL		1 1010  011
+
+And flip the bits?
+
+AIL		1 1000  010
+BIL		1 0010  000
+CIL		0 1011  110
+DIL		0 0101  100
+
+None of this seems like anything.

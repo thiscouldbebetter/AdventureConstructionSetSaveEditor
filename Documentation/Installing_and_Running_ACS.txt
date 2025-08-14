@@ -1,0 +1,107 @@
+Installing and Running
+_Adventure Construction Set_
+============================
+
+Follow the instructions below to download and install
+the classic DOS game _Adventure Construction Set_
+and run its demonstration adventure, "Rivers of Light",
+using the DOSBox emulator running on a computer running
+the Windows 10 operating system.
+
+1. Download _Adventure Construction Set_ as a .zip file,
+perhaps from the URL
+
+	https://www.myabandonware.com/game/stuart-smith-s-adventure-construction-set-1qr#download.
+
+(Note that the author of these instructions does not control
+the myabandonware.com website.  At the time of this writing,
+it does not seem to be distributing malware, or at least not
+obvious malware.  And that may change in the future, of course.)
+
+2. Extract the contents of the downloaded .zip file
+into any convenient directory.  For these instructions,
+it will be assumed that it is extracted to C:\Temp\ACS.
+
+3. Download the DOSBox installer from the URL
+
+	https://sourceforge.net/projects/dosbox/files/latest/download
+
+to any convenient location, such as the desktop
+or to the C:\Temp directory.
+
+4. Double-click the downloaded .exe file for the DOSBox installer
+to install DOSBox.
+
+5. Start DOSBox, perhaps by double-clicking the icon it
+installed on the desktop by default.
+
+6. In the DOSBox console, enter the command
+
+	mount C C:\Temp\ACS
+
+This will "map" the DOSBox virtual machine's C: drive
+to the directory on the Window host machine to which ACS was extracted.
+
+7. Still in DOSBox, enter the command
+
+	C:
+
+to switch to the DOSBox virtual machine's newly mapped C: drive. 
+
+8. Still in DOSBox, on the C: drive, enter the command
+
+	ACS
+
+and verify that the game starts, and that it begins to cycle
+between the title screen, some screens describing the features
+of the game, and a short demonstration of gameplay.
+
+9.  Press Ctrl-F11 and Ctrl-F12 to adjust the speed of the
+DOSBox virtual machine so that each screen is shown
+for a reasonable amount of time.  On most modern host systems,
+likely this will mean slowing it down significantly
+by pressing Ctrl-F11 repeatedly.  Make a note of the correct speed,
+given in the title bar of the DOSBox window.
+
+10.  Press the spacebar to go to the main menu screen,
+then press F1 to "make an adventure disk".
+
+11. On the "Create an Adventure Disk" screen, use the arrow keys
+to move the cursor to "Rivers of Light",
+then press the Insert key to confirm the selection
+and proceed to the next screen.
+
+12. On the "Adventure Creation Procedure" screen,
+press the Insert key again to attempt to start
+creating the adventure.  However, this will fail,
+because there is no way to change the disk
+to which the adventure is being written.
+
+13. Close the DOSBox Window, perhaps by clicking the X button
+in the upper-right corner.
+
+14. Back on the Windows host machine, start Windows File Explorer
+and open the extracted ACS directory within it,
+then right-click on a blank area in the main pane,
+select the item "New > Text File" from the context menu that appears,
+and rename the new file created to "ADVEN.HRD".
+
+15. Repeat steps 5-8 to restart DOSBox, map the guest drive
+to the host drive, and run ACS.  However, this time the ACS
+title screen will with a significantly less attractive title screen,
+and none of the features and demo screens.  This seems to indicate
+that the program is in "create adventure" mode.
+
+16. Press F1 to "make an adventure disk".
+
+17. Once again on the "Create an Adventure Disk" screen,
+use the arrow keys to move the cursor to "Rivers of Light",
+then press the Insert key twice to confirm.
+
+18. This time, a message reading "The adventure disk is ready!"
+will appear.  Press the Insert key to return to the
+"Create an adventure disk" screen, then use the arrow keys
+to navigate to the "Exit" item and return to the main menu screen.
+
+19. Back on the main menu screen, press the F7 key to play
+the newly created adventure.
