@@ -1,0 +1,470 @@
+<html>
+<body>
+
+<script type="text/javascript" src="BitHandling/BitStream.js"></script>
+<script type="text/javascript" src="BitHandling/ByteStream.js"></script>
+<script type="text/javascript" src="BitHandling/ByteConverter.js"></script>
+
+<script type="text/javascript" src="BitHandling/_Imports.js"></script>
+
+<script type="text/javascript">
+
+class Adventure
+{
+	constructor(name, authorName, pictures, worldMap, regions, things, creatures, messages)
+	{
+		this.name = name;
+		this.authorName = authorName;
+		this.pictures = pictures;
+		this.worldMap = worldMap;
+		this.regions = regions;
+		this.things = things;
+		this.creatures = creatures;
+		this.messages = messages;
+	}
+
+	// Bytes.
+
+	static manyFromBytes(bytes)
+	{
+		throw new Error("todo");
+	}
+
+	static fromBytes(bytes)
+	{
+		throw new Error("todo");
+	}
+
+	toBytes()
+	{
+		throw new Error("todo");
+	}
+}
+
+class Creature
+{
+	constructor(id, name, typeId, attributes)
+	{
+		this.id = id;
+		this.name = name;
+		this.typeId = typeId;
+		this.attributes = attributes;
+	}
+
+	// Bytes.
+
+	static manyFromBytes(bytes)
+	{
+		throw new Error("todo");
+	}
+
+	static fromBytes(bytes)
+	{
+		throw new Error("todo");
+	}
+
+	toBytes()
+	{
+		throw new Error("todo");
+	}
+}
+
+class CreatureAttributes
+{
+	constructor(name, value)
+	{
+		this.name = name;
+		this.value = value;
+	}
+
+	// Bytes.
+
+	static manyFromBytes(bytes)
+	{
+		throw new Error("todo");
+	}
+
+	static fromBytes(bytes)
+	{
+		throw new Error("todo");
+	}
+
+	toBytes()
+	{
+		throw new Error("todo");
+	}
+}
+
+class CreatureType
+{
+	constructor(id, name)
+	{
+		this.id = id;
+		this.name = name;
+	}
+
+	static Instances()
+	{
+		if (this._instances == null)
+		{
+			this._instances = new CreatureType_Instances();
+		}
+
+		return this._instances;
+	}
+}
+
+class CreatureType_Instances
+{
+	constructor()
+	{
+		this.PersonsFriends = new CreatureType(1, "Persons-Friends");
+		this.PersonsEnemies = new CreatureType(2, "Persons-Enemies");
+		this.PersonsNeutral = new CreatureType(3, "Persons-Neutral");
+		this.PersonsThieves = new CreatureType(4, "Persons-Thieves");
+		this.BeastsHostile 	= new CreatureType(5, "Beasts-Hostile");
+		this.BeastsNeutral 	= new CreatureType(6, "Beasts-Neutral");
+		this.EvilBeings 	= new CreatureType(7, "Evil Beings");
+		this.YourNewIdea 	= new CreatureType(8, "Your New Idea");
+
+		this._All =
+		[
+			this.PersonsFriends,
+			this.PersonsEnemies,
+			this.PersonsNeutral,
+			this.PersonsThieves,
+			this.BeastsHostile,
+			this.BeastsNeutral,
+			this.EvilBeings,
+			this.YourNewIdea,
+		];
+	}
+}
+
+class Message
+{
+	constructor(id, text)
+	{
+		this.id = id;
+		this.text = text;
+	}
+}
+
+class MusicalTheme
+{
+	constructor(id, name)
+	{
+		this.id = id;
+		this.name = name;
+	}
+
+	Instances()
+	{
+		if (this._instances == null)
+		{
+			this._instances = new MusicalTheme_Instances();
+		}
+		return this._instances;
+	}
+}
+
+class MusicalTheme_Instances
+{
+	constructor()
+	{
+		this.Fantasy = new MusicalTheme("Fantasy");
+		this.SciFi = new MusicalTheme("SciFi");
+		this.Spy = new MusicalTheme("Spy");
+
+		this._All =
+		[
+			this.Fantasy,
+			this.SciFi,
+			this.Spy
+		];
+	}
+}
+
+class Picture
+{
+	constructor(id, pixelColorsAsStrings)
+	{
+		this.id = id;
+		this.pixelColorsAsStrings = pixelColorsAsStrings;
+	}
+
+	// Bytes.
+
+	static manyFromBytes(bytes)
+	{
+		throw new Error("todo");
+	}
+
+	static fromBytes(bytes)
+	{
+		throw new Error("todo");
+	}
+
+	toBytes()
+	{
+		throw new Error("todo");
+	}
+}
+
+class Region
+{
+	constructor(id, name, rooms)
+	{
+		this.id = id;
+		this.name = name;
+		this.rooms = rooms;
+	}
+
+	// Bytes.
+
+	static manyFromBytes(bytes)
+	{
+		throw new Error("todo");
+	}
+
+	static fromBytes(bytes)
+	{
+		throw new Error("todo");
+	}
+
+	toBytes()
+	{
+		throw new Error("todo");
+	}
+}
+
+class Room
+{
+	constructor(id, name, roomMap)
+	{
+		this.id = id;
+		this.name = name;
+		this.roomMap = roomMap;
+	}
+
+	// Bytes.
+
+	static manyFromBytes(bytes)
+	{
+		throw new Error("todo");
+	}
+
+	static fromBytes(bytes)
+	{
+		throw new Error("todo");
+	}
+
+	toBytes()
+	{
+		throw new Error("todo");
+	}
+}
+
+class RoomMap
+{
+	constructor(sizeInCells, cells)
+	{
+		this.sizeInCells = sizeInCells;
+		this.cells = cells;
+	}
+
+	// Bytes.
+
+	static fromBytes(bytes)
+	{
+		throw new Error("todo");
+	}
+
+	toBytes()
+	{
+		throw new Error("todo");
+	}
+}
+
+class RoomMapCell
+{
+	constructor()
+	{
+		// todo
+	}
+}
+
+class Thing
+{
+	constructor
+	(
+		id,
+		name,
+		typeId,
+		countGeneratedMax,
+		attackAdjustmentAsPercentage,
+		chanceOfBreakingAsPercentage,
+		isMagic,
+		othersCanUse,
+		pictureId,
+		disappearsOnUse,
+		weight,
+		value
+	)
+	{
+		this.id = id;
+		this.name = name;
+		this.typeId = typeId;
+		this.countGeneratedMax = countGeneratedMax;
+		this.attackAdjustmentAsPercentage = attackAdjustmentAsPercentage;
+		this.chanceOfBreakingAsPercentage = chanceOfBreakingAsPercentage;
+		this.isMagic = isMagic;
+		this.othersCanUse = othersCanUse;
+		this.pictureId = pictureId;
+		this.disappearsOnUse = disappearsOnUse;
+		this.weight = weight;
+		this.value = value;
+	}
+
+	// Bytes.
+
+	static manyFromBytes(bytes)
+	{
+		throw new Error("todo");
+	}
+
+	static fromBytes(bytes)
+	{
+		throw new Error("todo");
+	}
+
+	toBytes()
+	{
+		throw new Error("todo");
+	}
+}
+
+class ThingType
+{
+	constructor(id, name)
+	{
+		this.id = id;
+		this.name = name;
+	}
+
+	static Instances()
+	{
+		if (this._instances == null)
+		{
+			this._instances = new ThingType_Instances();
+		}
+
+		return this._instances;
+	}
+}
+
+class ThingType_Instances
+{
+	constructor()
+	{
+		this.Armor			= new ThingType(1, "Armor");
+		this.MagicItems		= new ThingType(2, "Magic Items");
+		this.MeleeWeapons	= new ThingType(3, "Melee Weapons");
+		this.MissileWeapons = new ThingType(4, "Missile Weapons");
+		this.MagicSpells	= new ThingType(5, "Magic Spells");
+		this.Treasure		= new ThingType(6, "Treasure");
+
+		this._All =
+		[
+			this.Armor,
+			this.MagicItems,
+			this.MeleeWeapons,
+			this.MissileWeapons,
+			this.MagicSpells,
+			this.Treasure
+		];
+	}
+}
+
+class WorldMap
+{
+	constructor(terrains, cells)
+	{
+		this.terrains = terrains;
+		this.cells = cells;
+	}
+
+	// Bytes.
+
+	static manyFromBytes(bytes)
+	{
+		throw new Error("todo");
+	}
+
+	static fromBytes(bytes)
+	{
+		throw new Error("todo");
+	}
+
+	toBytes()
+	{
+		throw new Error("todo");
+	}
+}
+
+class WorldMapTerrain
+{
+	constructor(id, name, passability)
+	{
+		this.id = id;
+		this.name = name;
+		this.passability = passability;
+	}
+
+	// Bytes.
+
+	static manyFromBytes(bytes)
+	{
+		throw new Error("todo");
+	}
+
+	static fromBytes(bytes)
+	{
+		throw new Error("todo");
+	}
+
+	toBytes()
+	{
+		throw new Error("todo");
+	}
+
+}
+
+class WorldMapTerrainPassability
+{
+	constructor()
+	{
+		// todo
+	}
+
+	// Bytes.
+
+	static manyFromBytes(bytes)
+	{
+		throw new Error("todo");
+	}
+
+	static fromBytes(bytes)
+	{
+		throw new Error("todo");
+	}
+
+	toBytes()
+	{
+		throw new Error("todo");
+	}
+}
+
+
+
+</script>
