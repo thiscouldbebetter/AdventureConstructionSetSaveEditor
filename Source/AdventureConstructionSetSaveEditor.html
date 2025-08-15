@@ -39,6 +39,8 @@
 
 <script type="text/javascript" src="BitHandling/Source/_Imports.js"></script>
 
+<script type="text/javascript" src="TextDecoder.js"></script>
+
 <script type="text/javascript">
 
 class UiEventHandler
@@ -107,9 +109,18 @@ class Adventure
 	{
 		var reader = ByteStream.fromBytes(bytes);
 
+		// test
+		reader.byteIndexSet(0x1b80a);
+		var thing1NameEncodedAsBytes = reader.readBytes(10);
+		var textDecoder = TextDecoder.Instance();
+		var thing2Name =
+			textDecoder.bytesDecodeToString(thing1NameEncodedAsBytes);
+		alert("thing2Name is " + thing2Name);
+
 		var messagesOffsetInBytes = 0x16C00;
 		var messageSizeInBytes = 0x100;
 		var messagesSoFar = [];
+		var messagesCount = 255; // todo
 		reader.byteIndexSet(messagesOffsetInBytes);
 		for (var m = 0; m < messagesCount; m++)
 		{
@@ -529,8 +540,9 @@ class Thing
 		var reader = BitStream.fromBytes(bytes);
 		var converter = new ByteConverter();
 
-		var nameEncoded = reader.readString(10);
-		var name = StringHelper.stringDecode(nameEncoded);
+		var nameEncodedAsBytes = reader.readBytes(10);
+		var textDecoder = TextDecoder.Instance();
+		var name = textDecoder.stringDecode(nameEncodedAsBytes);
 		var typeId = "todo";
 
 		reader.byteIndexSetByteIndex(0x1C000);

@@ -168,10 +168,17 @@ Types
 Code	Name
 ----	----
 Ar		Armor
+Co		Custom Obstacle
+Cs		Custom Space
 Ma		Magic Item
 Me		Melee Weapon
 Mi		Missile Weapon
-Sp		Magic Spell
+Ms		Magic Spell
+Ob		Obstacle
+Po		Portal
+Rf		Room Floor
+Sp		Space
+St		Store
 Tr		Treasure
 
 Number	Type	Name
@@ -215,7 +222,7 @@ Number	Type	Name
 42		Me		Club
 43		Me		Trident
 44		Mi		Crossbow
-45		Mi		Spear
+45		Mi		Msear
 46		Mi		Magic Bow
 47		Mi		Bow-Silver Arr.
 48		Mi		Bow and Arrow
@@ -228,15 +235,15 @@ Number	Type	Name
 55 		Ma		Magic Ring
 56		Ma		Shield of Honor
 57		Ma		Scroll
-58		Sp		Blessing
-59		Sp		Curse
-60		Sp		Weakness
-61		Sp		Flight
-62		Sp		Give Armor
-63		Sp		Give Weapon
-64		Sp		Life
-65		Sp		Speed
-66		Sp		Swim
+58		Ms		Blessing
+59		Ms		Curse
+60		Ms		Weakness
+61		Ms		Flight
+62		Ms		Give Armor
+63		Ms		Give Weapon
+64		Ms		Life
+65		Ms		Mseed
+66		Ms		Swim
 67		Ma		Potion
 68		Ma		Scroll
 69		Ma		Magic Wand
@@ -250,9 +257,48 @@ Number	Type	Name
 77		Tr		Packet
 78		Me		Deadly Touch
 79		Me		Acid Touch
-80		Sp		Do nothing
+80		Ms		Do nothing
 81		Tr		Gold
-
+82		Po		Standard Door
+83		St		Store
+84		Po		One-Way Door
+85		Sp		Chasm
+86		Ob		Wall
+87		Co		Trap
+88		Ob		Poisoned Chest
+89		Ob		Medicinal Cache
+90		Ob		Table
+91		Ob		Trees
+92		Po		Trap Door
+93		Po		Locked Door
+94		Po		Hidden Door
+95		Po		Stairs
+96		Sp		Int Door-Locked
+97		Sp		Interior Door
+98		Sp		Darkness
+99		Sp		Siren Flowers
+100		Sp		Bed
+101		Sp		Chair
+102		Co		Treasure Chest
+103		Cs		Trap
+104		Sp		Mountains
+105		Sp		Water
+106		Ob		Blank Wall
+107		Cs		Altar
+108		Po		Massive Boulder
+109		Cs		Message Space
+110		Cs		Music Space
+111		Cs		Rid Room Space
+112		Cs		Add 2 Rm. Space
+113		Cs		Creature Space
+114		Cs		Life Force Space
+115		Cs		Consume-Carry
+116		Ob		Do All-Bump
+117		Sp		Do All-Walk
+118		Sp		Neptune's Pool
+119		Po		Invisible Door
+[120-126]
+127		Rf		Empty Floor
 
 Thing Editing
 -------------
@@ -542,6 +588,9 @@ thing 1
 	value			0x1bd02				2		0 to 5000				?
 	max held?									always 3 for missile weapons?
 
+thing 2
+	name			0x1b80A-D			4		0						changed "dagger" to blank
+
 adventure name 		0x1c200-1c213		20		?						Padded with spaces.
 author				0x1c214-1c227		20		?						"
 message 1 of 254	0x06c00-06d00		0x100	?						"
@@ -801,3 +850,175 @@ CIL		0 1011  110
 DIL		0 0101  100
 
 None of this seems like anything.
+
+Okay, trying again.
+Changed thing 2's name
+from "dagger" to "" and got:
+
+0001B80A: 2F 00
+0001B80B: 19 00
+0001B80C: 9A 00
+0001B80D: 2C 00
+
+So "dagger" is:
+
+2F 19 9A 2C
+
+which is
+
+2    F     1    9     9    A     2    C
+0010 1111  0001 1001  1001 1010  0010 1100
+
+So that's <=8 nibbles for 6 chars.
+
+Let's change it to AAAAAA.
+
+Then it's
+
+0001B80A: 2F 69
+0001B80B: 19 06
+0001B80C: 9A 69
+0001B80D: 2C 06
+
+This looks promising.
+That's "6906" twice,
+and each 6906 encodes "AAA".
+Which is:
+
+6    9     0    6
+0110 1001  0000 0110
+
+That's 16 bits,
+which doesn't divide equally by 3.
+So let's divide unequally,
+and throw something away.
+Thats 3 groups of 5 bits, with one left over,
+probably at the beginning or end?
+Assuming we throw away the end, that'd be:
+
+01101 00100 00011
+
+That's not anything.
+Reverse the bit orders:
+
+0110 1001  0000 0110
+1001 0110  0110 0000
+
+"BBBBBB" becomes d2 0c d2 0c.
+
+d    2    0    c
+1101 0010 0000 1100
+
+A single "A" is 40 06.
+
+4    0     0    6
+0100 0000  0000	0110
+Reversed:
+
+0000 0010  0110 0000
+
+Some kind of Huffman encoding?
+
+Maybe every OTHER byte is reversed?
+Back to "AAAAAA",
+and reverse every OTHER byte:
+
+6    9     0    6      6    9     0    6   
+0110 1001  0000 0110   0110 1001  0000 0110
+0110 1001  0110 0000   0110 1001  0110 0000
+
+" A" is just 28 00 00 00.
+
+2    8
+0010 1000
+
+"  A" is 01 00 00 00.
+
+0    1     0
+0000 0001
+
+And "   A" is 00 00 40 06.
+So it definitely seems like 
+two bytes are three characters.
+But how?
+
+If I do just "AAA", it's 6906,
+just as anticipated.
+Let's compare AAA to BBB:
+
+AAA
+6    9     0    6
+0110 1001  0000 0110
+
+BBB
+d    2     0    c
+1101 0010  0000 1100
+
+In the normal order,
+everything's shifted one bit to the left.
+
+CCC
+3    b     1    3
+0011 1011  0001 0011
+
+DDD
+a    4     0    0
+1010 0100  0000 0000
+
+EEE
+0    d     2    0
+0000 1101  0010 0000
+
+FFF
+7    6     2    6
+0111 0110  0010 0110
+
+GGG
+d    f     2    c
+1101 1111  0010 1100
+
+HHH
+4    8     3    3
+0100 1000  0011 0011
+
+The three right bits of the second nibble
+count up.
+
+AAB
+6    a     0    6
+0110 1010  0000 0110
+
+Again,
+"  A" is 01 00 00 00.
+
+"  B" is 02 00 00 00
+
+"  C" is 03 00 00 00
+
+"  Z" is 1A 00 00 00
+which makes sense,
+since 0x1A = 26 decimal.
+
+
+"AAAAAAA", seven A's,
+is 69 06 69 06 40 06
+Which is "AAAAAA" plus "A".
+
+Can we brute force this?
+What's 26^3?
+It's 17,576.  Not great.
+Plus, that's just letters.
+
+Okay, like, little-endian?
+Reverse the byte order?
+
+AAB
+6    a     0    6
+0110 1010  0000 0110
+
+LE is 066a?
+0000 0110 0110 1010
+
+Forget it, I just adapted this:
+
+https://github.com/danlb2000/ACSViewer/blob/master/TextDecoder.cs
