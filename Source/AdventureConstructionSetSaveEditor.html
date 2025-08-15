@@ -1,20 +1,98 @@
 <html>
 <body>
 
-<script type="text/javascript" src="BitHandling/BitStream.js"></script>
-<script type="text/javascript" src="BitHandling/ByteStream.js"></script>
-<script type="text/javascript" src="BitHandling/ByteConverter.js"></script>
+<div id="divUi">
 
-<script type="text/javascript" src="BitHandling/_Imports.js"></script>
+	<h3>_Adventure Construction Set_ Save Editor</h3>
+
+	<p>
+		Upload an ADVEN.HRD file from the classic DOS-era game
+		_Adventure Construction Set_ to see a text representation
+		of its contents.  Some samples are provided
+		<a href="../Demo/index.html">here</a>.
+	</p>
+
+	<div>
+		<label>Adventure as JSON:</label>
+		<input
+			id="inputFile"
+			type="file"
+			onchange="UiEventHandler.inputFile_Changed(this)"
+		></input>
+		<br />
+		<textarea
+			id="textareaJson"
+			cols="80" rows="25"
+			spellcheck="false"
+		></textarea>
+	</div>
+	<div>
+		<button onclick="UiEventHandler.buttonSave_Clicked()">
+			Save to File
+		</button>
+	</div>
+</div>
+
+<script type="text/javascript" src="BitHandling/Source/BitStream.js"></script>
+<script type="text/javascript" src="BitHandling/Source/ByteStream.js"></script>
+<script type="text/javascript" src="BitHandling/Source/ByteConverter.js"></script>
+
+<script type="text/javascript" src="BitHandling/Source/_Imports.js"></script>
 
 <script type="text/javascript">
 
+class UiEventHandler
+{
+	static buttonSave_Clicked()
+	{
+		alert("Not yet implemented!");
+	}
+
+	static inputFile_Changed(inputFile)
+	{
+		var file = inputFile.files[0];
+		if (file != null)
+		{
+			var fileReader = new FileReader();
+			fileReader.onload = (event) =>
+			{
+				var adventureAsBinaryString =
+					event.target.result;
+				var adventureAsBytes =
+					adventureAsBinaryString.split("").map(x => x.charCodeAt(0) );
+				var adventure =
+					Adventure.fromBytes(adventureAsBytes);
+				var adventureAsJson = adventure.toJson();
+				var d = document;
+				var textareaJson =
+					d.getElementById("textareaJson");
+				textareaJson.value = adventureAsJson;
+			};
+			fileReader.readAsBinaryString(file);
+		}
+	}
+}
+
+// Classes.
+
 class Adventure
 {
-	constructor(name, authorName, pictures, worldMap, regions, things, creatures, messages)
+	constructor
+	(
+		name,
+		authorName,
+		musicalThemeId,
+		pictures,
+		worldMap,
+		regions,
+		things,
+		creatures,
+		messages
+	)
 	{
 		this.name = name;
 		this.authorName = authorName;
+		this.musicalThemeId = musicalThemeId;
 		this.pictures = pictures;
 		this.worldMap = worldMap;
 		this.regions = regions;
@@ -25,42 +103,136 @@ class Adventure
 
 	// Bytes.
 
-	static manyFromBytes(bytes)
-	{
-		throw new Error("todo");
-	}
-
 	static fromBytes(bytes)
 	{
-		throw new Error("todo");
+		var reader = ByteStream.fromBytes(bytes);
+
+		var messagesOffsetInBytes = 0x16C00;
+		var messageSizeInBytes = 0x100;
+		var messagesSoFar = [];
+		reader.byteIndexSet(messagesOffsetInBytes);
+		for (var m = 0; m < messagesCount; m++)
+		{
+			var message = reader.readString(messagesOffsetInBytes);
+			messagesSoFar.push(message);
+		}
+
+		var thingsOffsetInBytes = 0x1B800;
+		reader.byteIndexSet(thingsOffsetInBytes);
+		var thingsSoFar = [];
+		var thingsCount = 100; // ?
+		var thingSizeInBytes = 0x100; // ?
+		for (var t = 0; t < thingsCount; t++)
+		{
+			var thingAsBytes = reader.readBytes(thingSizeInBytes);
+			var thing = Thing.fromBytes(thingAsBytes);
+			thingsSoFar.push(things);
+		}
+
+		var adventureNameOffsetInBytes = 0x1C200;
+		reader.byteIndexSet(adventureNameOffsetInBytes);
+		var adventureName = reader.readString(14);
+		var authorName = reader.readString(14);
+
+		reader.byteIndexSet(0x1C229);
+		var regionCount = reader.readByte();
+		var regionsSoFar = [];
+		var regionsOffsetInBytes = 0x1C441;
+		var regionSizeInBytes = 0x200;
+		reader.byteIndexSet(regionsOffsetInBytes);
+		for (var rg = 0; rg < regionCount; rg++)
+		{
+			var regionAsBytes = reader.readBytes(regionSizeInBytes);
+			var region = Region.fromBytes(regionAsBytes);
+			regionsSoFar.push(region);
+		}
+
+		var worldMapOffsetInBytes = 0x1C42C;
+		reader.byteIndexSet(worldMapOffsetInBytes);
+		var worldMapSizeInBytes = 1000; // todo
+		var worldMapAsBytes = reader.readBytes(worldMapSizeInBytes);
+		var worldMap = WorldMap.fromBytes(worldMapAsBytes);
+
+		reader.byteIndexSet(0x1C56e);
+		var musicalThemeId = reader.readByte();
+
+		var creaturesOffsetInBytes = 0x1CB0A;
+		var creatureSizeInBytes = 0x300; // todo
+		var creaturesCount = 100; // todo
+		var creaturesSoFar = [];
+		for (var c = 0; c < creaturesCount; c++)
+		{
+			var creatureAsBytes = reader.readBytes(creatureSizeInBytes);
+			var creature = Creature.fromBytes(creatureAsBytes);
+			creaturesSoFar.push(creature);
+		}
+
+		var adventure = new Adventure
+		(
+			adventureName,
+			authorName,
+			musicalThemeId,
+			null, // pictures
+			worldMap,
+			null, // regions
+			things,
+			creatures,
+			messages
+		);
 	}
 
 	toBytes()
 	{
 		throw new Error("todo");
 	}
+
+	// Json.
+
+	fromJson()
+	{
+		throw new Error("todo");
+	}
+
+	toJson()
+	{
+		return JSON.stringify(this, null, 4);
+	}
 }
 
 class Creature
 {
-	constructor(id, name, typeId, attributes)
+	constructor(id, name, typeId, attributes, other)
 	{
 		this.id = id;
 		this.name = name;
 		this.typeId = typeId;
 		this.attributes = attributes;
+		this.other = other;
 	}
 
 	// Bytes.
 
-	static manyFromBytes(bytes)
-	{
-		throw new Error("todo");
-	}
-
 	static fromBytes(bytes)
 	{
-		throw new Error("todo");
+		var reader = BitStream.fromBytes(bytes);
+
+		var id = -1; // todo
+		var name = "todo";
+		var typeId = -1; // todo
+		var attributesAsBytes = reader.readBytes(10);
+		var attributes = CreatureAttribues.fromBytes();
+		var other = reader.readBytes(0); // todo
+
+		var creature = new Creature
+		(
+			id,
+			name,
+			typeId,
+			attributes,
+			other
+		);
+
+		return creature;
 	}
 
 	toBytes()
@@ -71,22 +243,32 @@ class Creature
 
 class CreatureAttributes
 {
-	constructor(name, value)
+	constructor(constitution, unknown, wisdom)
 	{
-		this.name = name;
-		this.value = value;
+		this.constitution = constitution;
+		this.unknown = unknown;
+		this.wisdom = wisdom;
 	}
 
 	// Bytes.
 
-	static manyFromBytes(bytes)
-	{
-		throw new Error("todo");
-	}
-
 	static fromBytes(bytes)
 	{
-		throw new Error("todo");
+		var bitStream = BitStream.fromBytes(bytes);
+		var converter = new ByteConverter();
+
+		var constitution = converter.bitsToInteger(bitStream.readBits(6) );
+		var unknown = converter.bitsToInteger(bitStream.readBits(5) ); // ?
+		var wisdom = converter.bitsToInteger(bitStream.readBits(5) );
+
+		var attributes = new CharacterAttributes
+		(
+			constitution,
+			strength,
+			wisdom
+		);
+
+		return attributes;
 	}
 
 	toBytes()
@@ -187,10 +369,10 @@ class MusicalTheme_Instances
 
 class Picture
 {
-	constructor(id, pixelColorsAsStrings)
+	constructor(id, pixelColorIndexRows)
 	{
 		this.id = id;
-		this.pixelColorsAsStrings = pixelColorsAsStrings;
+		this.pixelColorIndexRows = pixelColorIndexRows;
 	}
 
 	// Bytes.
@@ -229,7 +411,16 @@ class Region
 
 	static fromBytes(bytes)
 	{
-		throw new Error("todo");
+		var reader = BitStream.fromBytes(bytes);
+
+		var regionId = -1; // todo
+		var regionName = reader.readString(20);
+
+		var rooms = [];
+
+		var region = new Region(regionId, regionName, rooms);
+
+		return region;
 	}
 
 	toBytes()
@@ -335,7 +526,47 @@ class Thing
 
 	static fromBytes(bytes)
 	{
-		throw new Error("todo");
+		var reader = BitStream.fromBytes(bytes);
+		var converter = new ByteConverter();
+
+		var nameEncoded = reader.readString(10);
+		var name = StringHelper.stringDecode(nameEncoded);
+		var typeId = "todo";
+
+		reader.byteIndexSetByteIndex(0x1C000);
+		var countGeneratedMax =
+			converter.bitStringToInteger(reader.readBits(4) );
+
+		reader.byteIndexSetByteIndex(0x1C087);
+		var power = converter.bitsToInteger(reader.readBits(5) );
+		var range = converter.bitsToInteger(reader.readBits(5) );
+		var attackAdjustmentEncoded =
+			converter.bitsToInteger(reader.readBits(4) );
+		var chanceOfBreakingAsPercentage =
+			converter.bitsToInteger(reader.readBits(4) );
+		var isMagic = reader.readBit();
+		var onlyOwnerCanUse = reader.readBit();
+		var pictureId = reader.readBits(6);
+		reader.byteIndexSet(0x1BD00);
+		var diesOnUse = reader.readBit();
+		var weightEncoded = reader.readBits(15);
+		var valueEncoded = reader.readBits(16);
+
+		return new Thing
+		(
+			-1, // id - todo
+			name,
+			typeId,
+			countGeneratedMax,
+			attackAdjustmentAsPercentage,
+			chanceOfBreakingAsPercentage,
+			isMagic,
+			othersCanUse,
+			pictureId,
+			disappearsOnUse,
+			weight,
+			value
+		);
 	}
 
 	toBytes()
@@ -388,22 +619,27 @@ class ThingType_Instances
 
 class WorldMap
 {
-	constructor(terrains, cells)
+	constructor(name, terrains, cellsAsTerrainIdRows)
 	{
+		this.name = name;
 		this.terrains = terrains;
-		this.cells = cells;
+		this.cellsAsTerrainIdRows = cellsAsTerrainIdRows;
 	}
 
 	// Bytes.
 
-	static manyFromBytes(bytes)
-	{
-		throw new Error("todo");
-	}
-
 	static fromBytes(bytes)
 	{
-		throw new Error("todo");
+		var reader = BitStream.fromBytes(bytes);
+
+		var worldMap = new worldMap
+		(
+			name,
+			null, // terrains,
+			null // cellsAsTerrainIdRows
+		);
+
+		return worldMap;
 	}
 
 	toBytes()
