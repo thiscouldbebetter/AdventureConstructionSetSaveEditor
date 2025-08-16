@@ -107,15 +107,10 @@ class Adventure
 
 	static fromBytes(bytes)
 	{
-		var reader = ByteStream.fromBytes(bytes);
-
-		// test
-		reader.byteIndexSet(0x1b80a);
-		var thing1NameEncodedAsBytes = reader.readBytes(10);
 		var textDecoder = TextDecoder.Instance();
-		var thing2Name =
-			textDecoder.bytesDecodeToString(thing1NameEncodedAsBytes);
-		alert("thing2Name is " + thing2Name);
+		var converter = new ByteConverter();
+
+		var reader = ByteStream.fromBytes(bytes);
 
 		var messagesOffsetInBytes = 0x16C00;
 		var messageSizeInBytes = 0x100;
@@ -124,26 +119,46 @@ class Adventure
 		reader.byteIndexSet(messagesOffsetInBytes);
 		for (var m = 0; m < messagesCount; m++)
 		{
-			var message = reader.readString(messagesOffsetInBytes);
+			var messageAsBytes =
+				reader.readBytes(messagesOffsetInBytes);
+			var message = converter.bytesToString(messageAsBytes);
 			messagesSoFar.push(message);
 		}
 
-		var thingsOffsetInBytes = 0x1B800;
-		reader.byteIndexSet(thingsOffsetInBytes);
-		var thingsSoFar = [];
+		var thingNamesOffsetInBytes = 0x1B800;
+		var thingNameSizeInBytes = 10;
 		var thingsCount = 100; // ?
-		var thingSizeInBytes = 0x100; // ?
+
+		var thingNamesSoFar = [];
 		for (var t = 0; t < thingsCount; t++)
 		{
+			var thingNameEncodedAsBytes =
+				reader.readBytes(thingNameSizeInBytes);
+			var thingName =
+				textDecoder.bytesDecodeToString(thingNameEncodedAsBytes);
+			thingNamesSoFar.push(thingName);
+		}
+
+		var thingsOffsetInBytes = 0x1C000; // ?
+		reader.byteIndexSet(thingsOffsetInBytes);
+		var thingsSoFar = [];
+		var thingSizeInBytes = 4096; // ?
+		for (var t = 0; t < thingsCount; t++)
+		{
+			var thingId = t + 1;
+			var thingName = thingNamesSoFar[t];
 			var thingAsBytes = reader.readBytes(thingSizeInBytes);
-			var thing = Thing.fromBytes(thingAsBytes);
-			thingsSoFar.push(things);
+			var thing = Thing.fromIdNameAndBytes
+			(
+				thingId, thingName, thingAsBytes
+			);
+			thingsSoFar.push(thing);
 		}
 
 		var adventureNameOffsetInBytes = 0x1C200;
 		reader.byteIndexSet(adventureNameOffsetInBytes);
-		var adventureName = reader.readString(14);
-		var authorName = reader.readString(14);
+		var adventureName = converter.bytesToString(reader.readBytes(14) );
+		var authorName = converter.bytesToString(reader.readBytes(14) );
 
 		reader.byteIndexSet(0x1C229);
 		var regionCount = reader.readByte();
@@ -178,17 +193,44 @@ class Adventure
 			creaturesSoFar.push(creature);
 		}
 
+		var picturesSoFar = [];
+		var pictureSizeInPixels = Picture.sizeInPixels();
+		var picturePixelCount =
+			pictureSizeInPixels.x
+			* pictureSizeInPixels.y;
+		var bitsPerPixel = 2;
+		var pictureSizeInBits =
+			picturePixelCount * bitsPerPixel;
+		var pictureSizeInBytes =
+			pictureSizeInBits / 8;
+		var picturesCount = 100; // ?
+		var picturesOffsetInBytes = 0x28720; // ?
+		reader.byteIndexSet(picturesOffsetInBytes);
+		for (var p = 0; p < picturesCount; p++)
+		{
+			var pictureAsBytes =
+				reader.readBytes(pictureSizeInBytes);
+			var picture = Picture.fromBytes(pictureAsBytes);
+			picturesSoFar.push(picture);
+
+			if (i == 0)
+			{
+				var pictureAsCanvas = picture.toCanvas();
+				document.body.appendChild(pictureAsCanvas)
+			}
+		}
+
 		var adventure = new Adventure
 		(
 			adventureName,
 			authorName,
 			musicalThemeId,
-			null, // pictures
+			picturesSoFar,
 			worldMap,
-			null, // regions
-			things,
-			creatures,
-			messages
+			regionsSoFar,
+			thingsSoFar,
+			creaturesSoFar,
+			messagesSoFar
 		);
 	}
 
@@ -210,6 +252,20 @@ class Adventure
 	}
 }
 
+class Coords
+{
+	constructor(x, y)
+	{
+		this.x = x;
+		this.y = y;
+	}
+
+	static fromXY(x, y)
+	{
+		return new Coords(x, y);
+	}
+}
+
 class Creature
 {
 	constructor(id, name, typeId, attributes, other)
@@ -225,13 +281,14 @@ class Creature
 
 	static fromBytes(bytes)
 	{
-		var reader = BitStream.fromBytes(bytes);
+		var reader = ByteStream.fromBytes(bytes);
 
 		var id = -1; // todo
 		var name = "todo";
 		var typeId = -1; // todo
 		var attributesAsBytes = reader.readBytes(10);
-		var attributes = CreatureAttribues.fromBytes();
+		var attributes =
+			CreatureAttributes.fromBytes(attributesAsBytes);
 		var other = reader.readBytes(0); // todo
 
 		var creature = new Creature
@@ -268,15 +325,16 @@ class CreatureAttributes
 		var bitStream = BitStream.fromBytes(bytes);
 		var converter = new ByteConverter();
 
-		var constitution = converter.bitsToInteger(bitStream.readBits(6) );
-		var unknown = converter.bitsToInteger(bitStream.readBits(5) ); // ?
-		var wisdom = converter.bitsToInteger(bitStream.readBits(5) );
+		var constitution = bitStream.readInteger(6);
+		var strength = bitStream.readInteger(5);
+		var wisdom = bitStream.readInteger(5);
 
-		var attributes = new CharacterAttributes
+		var attributes = new CreatureAttributes
 		(
 			constitution,
 			strength,
 			wisdom
+			// todo
 		);
 
 		return attributes;
@@ -386,16 +444,50 @@ class Picture
 		this.pixelColorIndexRows = pixelColorIndexRows;
 	}
 
-	// Bytes.
-
-	static manyFromBytes(bytes)
+	static sizeInPixels()
 	{
-		throw new Error("todo");
+		if (this._sizeInPixels == null)
+		{
+			this._sizeInPixels = Coords.fromXY(16, 16);
+		}
+		return this._sizeInPixels;
 	}
+
+	toCanvas()
+	{
+		var d = document;
+		var canvas = d.createElement("canvas");
+		var pictureSizeInPixels = Picture.sizeInPixels();
+		canvas.width = pictureSizeInPixels.x;
+		canvas.height = pictureSizeInPixels.y;
+		return canvas;
+	}
+
+	// Bytes.
 
 	static fromBytes(bytes)
 	{
-		throw new Error("todo");
+		var id = "todo";
+		var bitStream = BitStream.fromBytes(bytes);
+		var pixelColorIndexRows = [];
+		var pictureDimensionInPixels = 16;
+		var pixelColorIndexRows = [];
+		for (var y = 0; y < pictureDimensionInPixels; y++)
+		{
+			var pixelColorIndicesForRow = [];
+
+			for (var x = 0; x < pictureDimensionInPixels; x++)
+			{
+				var pixelColorIndex = bitStream.readInteger(2);
+				pixelColorIndicesForRow.push(pixelColorIndex);
+			}
+
+			pixelColorIndexRows.push(pixelColorIndicesForRow);
+		}
+
+		var picture = new Picture(id, pixelColorIndexRows);
+
+		return picture;
 	}
 
 	toBytes()
@@ -535,47 +627,45 @@ class Thing
 		throw new Error("todo");
 	}
 
-	static fromBytes(bytes)
+	static fromIdNameAndBytes(id, name, bytes)
 	{
 		var reader = BitStream.fromBytes(bytes);
 		var converter = new ByteConverter();
 
-		var nameEncodedAsBytes = reader.readBytes(10);
-		var textDecoder = TextDecoder.Instance();
-		var name = textDecoder.stringDecode(nameEncodedAsBytes);
 		var typeId = "todo";
 
-		reader.byteIndexSetByteIndex(0x1C000);
+		//reader.byteIndexSetByteIndex(0x1C000);
 		var countGeneratedMax =
-			converter.bitStringToInteger(reader.readBits(4) );
+			reader.readInteger(4);
 
-		reader.byteIndexSetByteIndex(0x1C087);
-		var power = converter.bitsToInteger(reader.readBits(5) );
-		var range = converter.bitsToInteger(reader.readBits(5) );
-		var attackAdjustmentEncoded =
-			converter.bitsToInteger(reader.readBits(4) );
-		var chanceOfBreakingAsPercentage =
-			converter.bitsToInteger(reader.readBits(4) );
-		var isMagic = reader.readBit();
-		var onlyOwnerCanUse = reader.readBit();
-		var pictureId = reader.readBits(6);
-		reader.byteIndexSet(0x1BD00);
-		var diesOnUse = reader.readBit();
-		var weightEncoded = reader.readBits(15);
-		var valueEncoded = reader.readBits(16);
+		//reader.byteIndexSetByteIndex(0x1C087);
+		var power = reader.readInteger(5);
+		var range = reader.readInteger(5);
+		var attackAdjustmentEncoded = reader.readInteger(4);
+		var attackAdjustmentAsPercentage = 
+			attackAdjustmentEncoded * 5 - 40;
+		var chanceOfBreakingAsPercentage = reader.readInteger(4);
+		var isMagic = (reader.readBit() > 0);
+		var onlyOwnerCanUse = (reader.readBit() > 0);
+		var pictureId = reader.readInteger(6);
+
+		//reader.byteIndexSet(0x1BD00);
+		var diesOnUse = reader.readBit() > 0;
+		var weight = reader.readInteger(15);
+		var value = reader.readInteger(16);
 
 		return new Thing
 		(
-			-1, // id - todo
+			id,
 			name,
 			typeId,
 			countGeneratedMax,
 			attackAdjustmentAsPercentage,
 			chanceOfBreakingAsPercentage,
 			isMagic,
-			othersCanUse,
+			onlyOwnerCanUse,
 			pictureId,
-			disappearsOnUse,
+			diesOnUse,
 			weight,
 			value
 		);
@@ -644,7 +734,7 @@ class WorldMap
 	{
 		var reader = BitStream.fromBytes(bytes);
 
-		var worldMap = new worldMap
+		var worldMap = new WorldMap
 		(
 			name,
 			null, // terrains,

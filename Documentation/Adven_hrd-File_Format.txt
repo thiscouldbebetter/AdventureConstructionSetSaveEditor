@@ -1,3 +1,4 @@
+An Exploration of the
 Adventure Construction Set
 Adventure File Format
 ==========================
@@ -58,7 +59,7 @@ Key
 Person with Skirt
 Marble?
 
-[row break]
+[row break, 12 so far]
 
 Dart?
 Shield
@@ -72,6 +73,9 @@ Bow
 Carpet
 Pot?
 Chair2
+
+[row, 24]
+
 Scroll
 Wand?
 Oil Lamp
@@ -85,7 +89,7 @@ Ladder
 Torch
 Red Cross
 
-[row]
+[row, 36]
 
 Lantern
 Armor
@@ -100,6 +104,7 @@ Candelabra
 ?
 Heiroglyphs
 
+[48]
 
 Creature Pictures (Only)
 
@@ -116,7 +121,7 @@ Vizier
 Gryphon
 Devil
 
-[row]
+[row, 12]
 
 Bee
 Lady2
@@ -131,7 +136,7 @@ Witch
 Caveman
 Bird
 
-[row]
+[row, 24]
 
 Troll?
 Bat
@@ -145,6 +150,9 @@ Man with Amulet
 Fairy
 Spider
 Rat
+
+[row, 36]
+
 Eyeball with Tentacles
 Lion?
 Rock
@@ -156,6 +164,13 @@ Minotaur
 Skeleton
 Skull
 
+[10]
+
+[46?]
+
+94?
++ 16 terrain 
+= 100 pictures total?
 
 
 
@@ -712,17 +727,262 @@ add creature
 Presumably this is the same format
 as for the wandering monsters on the world map?
 
-Images
-------
+
+Pictures
+--------
 
 Changing a single pixel on the first image ("water"),
-namely, adding a blue pixel at the lower right,
-changes 13 bytes in the file,
-and they're pretty unpredictable.
-Some sort of compression encoding going on?
-Doesn't seem to matter much where the pixel goes,
-it's always a lot of bytes changed.
-Actually, it's not clear that I can even undo it!
+namely, changing the pixel at the upper right
+from black (color 0?) to blue (color 1?)
+leads to these changes:
+
+	[0x1c600-1: random changes as always, omitting going forward]
+
+	00028720: 00 40
+
+	00029688: 06 04
+	00029689: 06 07
+	[skips -A?]
+	0002968B: 12 0C
+	0002968C: 05 04
+	0002968D: 13 20
+	0002968E: 14 20
+
+Then, if I change it BACK to black,
+it still leaves these changes:
+
+	00029688: 06 04
+	00029689: 06 07
+
+	0002968B: 12 0C
+	0002968C: 05 04
+	0002968D: 13 20
+	0002968E: 14 20
+
+Sigh.  What's with THIS weirdo encoding?
+There are only four colors,
+which fit perfectly into two bits,
+four sets of which fit perfectly in a byte.
+It seems that fancier encoding is pointless.
+Maybe this is some sort of dirty flag?
+Or maybe per-row/ per-column checksum?
+
+What if I do the same
+to picture #2?
+It's "plains",
+which is completely black.
+I added a blue pixel in the upper left.
+Then the diff becomes:
+
+	00028730: 00 40
+
+	00029688: 06 04
+	00029689: 06 07
+
+	0002968B: 12 0C
+	0002968C: 05 04
+	0002968D: 13 20
+	0002968E: 14 20
+
+The other bytes didn't change again.
+I don't know what they are,
+but I'm gonna assume they don't matter.
+
+I calculate each picture as 64 bytes minimum:
+
+	16 pixels across
+	* 16 pixels down
+	* 2 bits/pixel
+	/ 8 bits/byte
+	=
+	64 bytes
+
+The actual substantive changes
+would therefore be:
+
+	0x28730
+	- 0x28720
+	=
+	0x10
+	=
+	16.
+
+So, from this, it appears
+that corresponding pixels in adjacent pictures
+are 16 bytes apart,
+which would imply that each picture
+is 16 bytes long.
+But that can't be right, because
+I calculated 64 bytes!
+(Assuming no compression,
+which, how would THAT work?)
+
+So let's try changing the lower-right pixel of each
+from black to blue.
+Here's the changes for the first picture:
+
+	00029688-E: [same as always]
+
+	0002B32F: 00 01
+
+And after changing it back to black:
+
+	00029688-E: [same as always]
+	[no other changes]
+
+Now let's change the lower-right pixel
+of picture #2 from black to blue:
+
+	[same stuff]
+
+	0002B33F: 00 01
+
+The corresponding changes on pictures #1 and #2
+still seem to be 16 bytes apart!
+How is this possible?
+
+Okay, for picture 1,
+here's the substantive changes
+for changing the upper-left
+and lower-right pixels to blue:
+
+	00028720: 00 40 (upper-left)
+	0002B32F: 00 01
+
+So how far apart are those?
+
+	0x2b32f - 0x28720
+	=
+	176,943 - 165,664
+
+11,279 bytes?!!
+What a strange encoding.
+Maybe each row of pixels
+leads directly into the corresponding row
+on the next picture?
+Like, all the "pictures"
+are just tiles excerpted
+from a few giant pictures?
+
+But, since the upper-left pixels
+of the first two pictures
+are 16 bytes apart,
+that means that each pixel gets its own byte?
+Which, since only four colors are allowed,
+would also be crazy inefficient.
+
+I guess I should check
+how far the upper-right pixel is
+from the upper-left.
+That would be:
+
+	0x2ab28 - 0x28720
+	174,888 - 165,664
+	=
+	9,224 bytes!
+
+This seems insane.
+Okay, what about the pixel to the RIGHT
+of the upper-left pixel?
+
+The difference from baseline there is:
+
+	00028720: 00 10
+
+That's the same byte as the upper-left,
+so by moving the pixel to the right,
+we get this result:
+
+	40 -> 10
+	0100 0000 -> 0001 0000
+
+So, it shifted two bits to the right.
+Presumably, then,
+this byte encodes the first four pixels
+moving right from the upper-left
+of the first picture.
+I made all four of those pixels blue,
+and got this result:
+
+	00028720: 00 55
+
+	55
+	0101 0101
+
+So that makes sense, at least.
+Making the fifth pixel over blue gives us:
+
+	0002AB20: 05 45
+
+(We're about to run into the pixels
+that were already blue, but never mind.)
+This makes perfect sense so far.
+Switching to the second picture,
+which is originally all-black,
+and making the first ROW of pixels blue:
+
+	00028730: 00 55
+
+	00028738: 00 55
+
+	0002AB30: 00 55
+
+	0002AB38: 00 55
+
+Crazy, crazy stuff.
+Is this inTENded as obfuscation?
+The second block of four pixels
+is 8 bytes away from the first block.
+And the third block is, uh,
+
+	0x2ab30 - 0x28730
+	174,898 - 165,680
+	=
+	9218
+
+9,218 bytes from the first block.
+
+The fourth block is then 8 bytes away from the third.
+This is goofy.
+
+So maybe the picture is hacked into octants,
+and then you run down the first column
+with four-pixel blocks,
+jump back to the top of the next column,
+then move on to the next picture,
+and do the upper-left octant?
+And then, when you're done with all the upper-left octants
+for all the pictures, you move on to...?
+
+So maybe within an octant it runs like this?
+
+0---8---
+1---9---
+2---10--
+3---11--
+4---12--
+5---13--
+6---14--
+7---15--
+
+Okay, let's try setting the pixel below
+the upper-right pixel to blue.
+
+	00028731: 00 40
+
+Yep, that makes sense.
+
+Now the one eight--er, seven--down from the upper-left corner:
+
+	00028737: 00 40
+
+Yep, that matches current theory.
+Now, the pixel below that:
+
+	00028F30: 00 40
+
+Okay, this MAY be as expected.
+It's 0x800 = 2048 from the upper-left pixel set.
 
 
 Text String Encodings
