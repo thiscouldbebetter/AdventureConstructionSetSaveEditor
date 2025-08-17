@@ -103,6 +103,11 @@ class Adventure
 		this.messages = messages;
 	}
 
+	pictureByIndex(pictureIndex)
+	{
+		return this.pictures[pictureIndex];
+	}
+
 	// Bytes.
 
 	static fromBytes(bytes)
@@ -173,9 +178,9 @@ class Adventure
 			regionsSoFar.push(region);
 		}
 
-		var worldMapOffsetInBytes = 0x1C42C;
+		var worldMapOffsetInBytes = 0x1C000; // hack
 		reader.byteIndexSet(worldMapOffsetInBytes);
-		var worldMapSizeInBytes = 1000; // todo
+		var worldMapSizeInBytes = 0x1000; // todo
 		var worldMapAsBytes = reader.readBytes(worldMapSizeInBytes);
 		var worldMap = WorldMap.fromBytes(worldMapAsBytes);
 
@@ -193,12 +198,12 @@ class Adventure
 			creaturesSoFar.push(creature);
 		}
 
-		var picturesSoFar = [];
+		var pictures = [];
 		var picturesCount = 128; // ?
 		for (var p = 0; p < picturesCount; p++)
 		{
 			var picture = Picture.fromId(p);
-			picturesSoFar.push(picture);
+			pictures.push(picture);
 		}
 
 		var pictureSizeInPixels =
@@ -281,7 +286,7 @@ class Adventure
 
 			for (var p = 0; p < picturesCount; p++)
 			{
-				var picture = picturesSoFar[p];
+				var picture = pictures[p];
 
 				for (var octantIndexWithinPair = 0; octantIndexWithinPair < octantsPerOctantPair; octantIndexWithinPair++)
 				{
@@ -325,14 +330,12 @@ class Adventure
 
 		var d = document;
 		var divPictures = d.createElement("div");
-
 		for (var p = 0; p < picturesCount; p++)
 		{
-			var picture = picturesSoFar[p];
+			var picture = pictures[p];
 			var pictureAsCanvas = picture.toCanvas();
 			divPictures.appendChild(pictureAsCanvas);
 		}
-
 		d.body.appendChild(divPictures);
 
 		var adventure = new Adventure
@@ -340,13 +343,17 @@ class Adventure
 			adventureName,
 			authorName,
 			musicalThemeId,
-			picturesSoFar,
+			pictures,
 			worldMap,
 			regionsSoFar,
 			thingsSoFar,
 			creaturesSoFar,
 			messagesSoFar
 		);
+
+		var worldMapAsCanvas =
+			worldMap.toCanvas(adventure);
+		d.body.appendChild(worldMapAsCanvas);
 
 		return adventure;
 	}
@@ -380,6 +387,20 @@ class Coords
 	static fromXY(x, y)
 	{
 		return new Coords(x, y);
+	}
+
+	multiply(other)
+	{
+		this.x *= other.x;
+		this.y *= other.y;
+		return this;
+	}
+
+	overwriteWith(other)
+	{
+		this.x = other.x;
+		this.y = other.y;
+		return this;
 	}
 
 	toString()
@@ -608,38 +629,43 @@ class Picture
 
 	toCanvas()
 	{
-		var colorsByIndex = // hack - Palette colors might be modified.
-		[
-			"Black",
-			"Blue",
-			"Brown",
-			"White"
-		];
-	
-		var d = document;
-		var canvas = d.createElement("canvas");
-		var pictureSizeInPixels = Picture.sizeInPixels();
-		canvas.width = pictureSizeInPixels.x;
-		canvas.height = pictureSizeInPixels.y;
-		var g = canvas.getContext("2d");
-
-		var pixelPosInPixels = new Coords();
-		for (var py = 0; py < pictureSizeInPixels.y; py++)
+		if (this._canvas == null)
 		{
-			pixelPosInPixels.y = py;
-			for (var px = 0; px < pictureSizeInPixels.x; px++)
+			var colorsByIndex = // hack - Palette colors might be modified.
+			[
+				"Black",
+				"Blue",
+				"Brown",
+				"White"
+			];
+		
+			var d = document;
+			var canvas = d.createElement("canvas");
+			var pictureSizeInPixels = Picture.sizeInPixels();
+			canvas.width = pictureSizeInPixels.x;
+			canvas.height = pictureSizeInPixels.y;
+			var g = canvas.getContext("2d");
+
+			var pixelPosInPixels = new Coords();
+			for (var py = 0; py < pictureSizeInPixels.y; py++)
 			{
-				pixelPosInPixels.x = px;
-				var pixelColorIndex =
-					this.pixelAtPosGetColorIndex(pixelPosInPixels);
-				var pixelColor =
-					colorsByIndex[pixelColorIndex];
-				g.fillStyle = pixelColor;
-				g.fillRect(pixelPosInPixels.x, pixelPosInPixels.y, 1, 1);
+				pixelPosInPixels.y = py;
+				for (var px = 0; px < pictureSizeInPixels.x; px++)
+				{
+					pixelPosInPixels.x = px;
+					var pixelColorIndex =
+						this.pixelAtPosGetColorIndex(pixelPosInPixels);
+					var pixelColor =
+						colorsByIndex[pixelColorIndex];
+					g.fillStyle = pixelColor;
+					g.fillRect(pixelPosInPixels.x, pixelPosInPixels.y, 1, 1);
+				}
 			}
+
+			this._canvas = canvas;
 		}
 
-		return canvas;
+		return this._canvas;
 	}
 
 	// Bytes.
@@ -902,24 +928,187 @@ class ThingType_Instances
 
 class WorldMap
 {
-	constructor(name, terrains, cellsAsTerrainIdRows)
+	constructor
+	(
+		name,
+		wrappingIsAllowed,
+		entryPoint,
+		terrainDefinitions,
+		creatureOccurrences,
+		sizeInCells,
+		cellsAsTerrainIndexRows
+	)
 	{
 		this.name = name;
-		this.terrains = terrains;
-		this.cellsAsTerrainIdRows = cellsAsTerrainIdRows;
+		this.wrappingIsAllowed = wrappingIsAllowed;
+		this.entryPoint = entryPoint;
+		this.terrainDefinitions = terrainDefinitions;
+		this.creatureOccurrences = creatureOccurrences;
+		this.sizeInCells = sizeInCells;
+		this.cellsAsTerrainIndexRows = cellsAsTerrainIndexRows;
+	}
+
+	terrainAtPosInCells(posInCells)
+	{
+		var terrainIndex =
+			this.terrainIndexAtPosInCells(posInCells);
+		var terrain = this.terrainDefinitions[terrainIndex];
+		return terrain;
+	}
+
+	terrainIndexAtPosInCells(posInCells)
+	{
+		var cellTerrainIndexRow =
+			this.cellsAsTerrainIndexRows[posInCells.y];
+		var cellTerrainIndex =
+			cellTerrainIndexRow[posInCells.x];
+		return cellTerrainIndex;
+	}
+
+	toCanvas(adventure)
+	{
+		var d = document;
+		var mapAsCanvas = d.createElement("canvas");
+		var graphics = mapAsCanvas.getContext("2d");
+
+		var mapSizeInCells = this.sizeInCells;
+		var pictureSizeInPixels = Picture.sizeInPixels();
+		var cellSizeInPixels = pictureSizeInPixels;
+		var cellPosInCells = new Coords(0, 0);
+		var drawPosInPixels = new Coords(0, 0);
+		for (var y = 0; y < mapSizeInCells.y; y++)
+		{
+			cellPosInCells.y = y;
+
+			for (var x = 0; x < mapSizeInCells.x; x++)
+			{
+				cellPosInCells.x = x;
+
+				var cellTerrain =
+					this.terrainAtPosInCells(cellPosInCells);
+
+				drawPosInPixels
+					.overwriteWith(cellPosInCells)
+					.multiply(cellSizeInPixels);
+
+				var cellTerrainPicture =
+					cellTerrain.picture(adventure);
+				var cellTerrainPictureAsCanvas =
+					cellTerrainPicture.toCanvas();
+
+				graphics.drawImage
+				(
+					cellTerrainPictureAsCanvas,
+					drawPosInPixels.x, drawPosInPixels.y
+				);
+			}
+		}
+
+		return mapAsCanvas;
 	}
 
 	// Bytes.
 
 	static fromBytes(bytes)
 	{
+		// Start with 0x1C000.
+
 		var reader = BitStream.fromBytes(bytes);
+		var converter = new ByteConverter();
+
+		reader.byteIndexSet(0x42C);
+		var wrappingIsAllowed =
+			reader.readByte() > 0;
+
+		var name =
+			converter.bytesToString(reader.readBytes(20) );
+
+		reader.byteIndexSet(0x700);
+		var mapSizeInCells = new Coords(40, 40);
+		var bitsPerCell = 4; // 16 terrains.
+		var mapCellsCount =
+			mapSizeInCells.x
+			* mapSizeInCells.y;
+		var bitsPerByte = 8;
+		var mapCellsSizeInBytes =
+			mapCellsCount * bitsPerCell / bitsPerByte;
+		var mapCellPairsAsBytes =
+			reader.readBytes(mapCellsSizeInBytes);
+		var terrainIndicesForCells = [];
+		for (var i = 0; i < mapCellPairsAsBytes.length; i++)
+		{
+			var cellPairAsByte = mapCellPairsAsBytes[i];
+			var cellLeftTerrainIndex =
+				cellPairAsByte >> 4;
+			var cellRightTerrainIndex =
+				cellPairAsByte & 0x0F;
+			terrainIndicesForCells.push(cellLeftTerrainIndex);
+			terrainIndicesForCells.push(cellRightTerrainIndex);
+		}
+
+		var cellsAsTerrainIndexRows = [];
+		var cellsPerRow = mapSizeInCells.x;
+		for (var y = 0; y < mapSizeInCells.y; y++)
+		{
+			var cellIndexStart = y * cellsPerRow;
+			var cellIndexEnd =
+				cellIndexStart + cellsPerRow;
+
+			var terrainIndexRow =
+				terrainIndicesForCells
+					.slice(cellIndexStart, cellIndexEnd);
+			cellsAsTerrainIndexRows
+				.push(terrainIndexRow);
+		}
+
+		reader.byteIndexSet(0x7a0);
+		var playerEntryPoint = new Coords
+		(
+			reader.readByte(), reader.readByte()
+		);
+
+		var td = (id, name) => new WorldMapTerrain(id, name, id, null);
+		var terrainDefinitions =
+		[
+			td(0,	"Water"),
+			td(1,	"Plain"),
+			td(2,	"Swamp"),
+			td(3,	"Desert"),
+			td(4,	"Dense Forest"),
+			td(5,	"Forest"),
+			td(6,	"Chapparal"),
+			td(7,	"Fields"),
+			td(8,	"Mountains"),
+			td(9,	"Foothills"),
+			td(10,	"River"),
+			td(11,	"High Mountains"),
+			td(12,	"Gateway"),
+			td(13,	"Parapet Gateway"),
+			td(14,	"Castle"),
+			td(15,	"Old Church")
+		];
+
+		var creatureOccurrences = []; // todo
+		/*
+		reader.byteIndexSet(0xb0a);
+		var creatureOccurrenceSizeInBytes = 592; // ?
+		var creatureOccurrencesCount = 8;
+		for (var i = 0; i < creatureOccurrencesCount; i++)
+		{
+			var creatureOccurrenceAsBytes =
+				reader.readBytes(creatureOccurrenceSizeInBytes);
+		}
+		*/
 
 		var worldMap = new WorldMap
 		(
 			name,
-			null, // terrains,
-			null // cellsAsTerrainIdRows
+			wrappingIsAllowed,
+			playerEntryPoint,
+			terrainDefinitions,
+			creatureOccurrences,
+			mapSizeInCells,
+			cellsAsTerrainIndexRows
 		);
 
 		return worldMap;
@@ -931,13 +1120,22 @@ class WorldMap
 	}
 }
 
+class WorldMapCreatureOccurrence
+{}
+
 class WorldMapTerrain
 {
-	constructor(id, name, passability)
+	constructor(id, name, pictureIndex, passability)
 	{
 		this.id = id;
 		this.name = name;
+		this.pictureIndex = pictureIndex;
 		this.passability = passability;
+	}
+
+	picture(adventure)
+	{
+		return adventure.pictureByIndex(this.pictureIndex);
 	}
 
 	// Bytes.
