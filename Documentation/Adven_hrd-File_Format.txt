@@ -945,16 +945,17 @@ And the third block is, uh,
 The fourth block is then 8 bytes away from the third.
 This is goofy.
 
-So maybe the picture is hacked into octants,
+So maybe the picture is hacked into quadrants,
 and then you run down the first column
 with four-pixel blocks,
 jump back to the top of the next column,
 then move on to the next picture,
-and do the upper-left octant?
-And then, when you're done with all the upper-left octants
+and do the upper-left quadrant?
+And then, when you're done with all the upper-left quadrants
 for all the pictures, you move on to...?
+...to the upper-right? or lower-left quadrant?
 
-So maybe within an octant it runs like this?
+So maybe within an quadrant it runs like this?
 
 0---8---
 1---9---

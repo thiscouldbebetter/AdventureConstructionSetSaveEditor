@@ -110,7 +110,7 @@ class Adventure
 		var textDecoder = TextDecoder.Instance();
 		var converter = new ByteConverter();
 
-		var reader = ByteStream.fromBytes(bytes);
+		var reader = BitStream.fromBytes(bytes);
 
 		var messagesOffsetInBytes = 0x16C00;
 		var messageSizeInBytes = 0x100;
@@ -194,7 +194,15 @@ class Adventure
 		}
 
 		var picturesSoFar = [];
-		var pictureSizeInPixels = Picture.sizeInPixels();
+		var picturesCount = 100; // ?
+		for (var p = 0; p < picturesCount; p++)
+		{
+			var picture = Picture.fromId(p);
+			picturesSoFar.push(picture);
+		}
+
+		var pictureSizeInPixels =
+			Picture.sizeInPixels(); // 16 x 16 pixels.
 		var picturePixelCount =
 			pictureSizeInPixels.x
 			* pictureSizeInPixels.y;
@@ -203,22 +211,110 @@ class Adventure
 			picturePixelCount * bitsPerPixel;
 		var pictureSizeInBytes =
 			pictureSizeInBits / 8;
-		var picturesCount = 100; // ?
-		var picturesOffsetInBytes = 0x28720; // ?
-		reader.byteIndexSet(picturesOffsetInBytes);
-		for (var p = 0; p < picturesCount; p++)
-		{
-			var pictureAsBytes =
-				reader.readBytes(pictureSizeInBytes);
-			var picture = Picture.fromBytes(pictureAsBytes);
-			picturesSoFar.push(picture);
+		var pictureQuadrantSizeInBytes =
+			pictureSizeInBytes / 4;
 
-			if (i == 0)
+		var picture0OffsetInBytes = 0x28720; // ?
+		reader.byteIndexSet(picture0OffsetInBytes);
+
+		var pixelPosInPixels = new Coords();
+
+		// The bytes encoding the upper-left quadrant
+		// of the second picture
+		// occur just after the upper-left quadrant
+		// of the first picture.
+		// Within a quadrant,
+		// each byte encodes a 4x1 tetrad of pixels,
+		// each pixel getting 2 bits,
+		// each pair of pixels encoding one color index
+		// from a palette of 4 colors,
+		// each palette color chosen from one of sixteen
+		// possible colors.
+		// After the first 4x1 tetrad,
+		// the next byte encodes the 4x1 tetrad
+		// immediately underneath,
+		// until eight rows,
+		// when it jumps back to the top
+		// and to the next column.
+		// Then it does another set of 8
+		// and, after that, it jumps to the
+		// corresponding quadrant of the next picture.
+
+		var quadrantOffsetWithinPictureInPixels = new Coords();
+		var tetradOffsetWithinQuadrantInPixels = new Coords();
+		var pixelPosInPixels = new Coords();
+
+		for (var qy = 0; qy < 2; qy++)
+		{
+//console.log("qy=" + qy);
+			quadrantOffsetWithinPictureInPixels.y =
+				pictureSizeInPixels.y / 2 * qy;
+
+			for (var qx = 0; qx < 2; qx++)
 			{
-				var pictureAsCanvas = picture.toCanvas();
-				document.body.appendChild(pictureAsCanvas)
+//console.log("qx=" + qx);
+				quadrantOffsetWithinPictureInPixels.x =
+					pictureSizeInPixels.x / 2 * qx;
+
+				for (var p = 0; p < picturesCount; p++)
+				{
+//console.log("p=" + p);
+					var picture = picturesSoFar[p];
+
+					for (var tx = 0; tx < 2; tx++)
+					{
+//console.log("tx=" + tx);
+						tetradOffsetWithinQuadrantInPixels.x =
+							tx * 4;
+
+
+						for (var ty = 0; ty < 8; ty++)
+						{
+//console.log("ty=" + ty);
+							tetradOffsetWithinQuadrantInPixels.y = ty;
+
+							pixelPosInPixels.x =
+								quadrantOffsetWithinPictureInPixels.x
+								+ tetradOffsetWithinQuadrantInPixels.x;
+
+							pixelPosInPixels.y =
+								quadrantOffsetWithinPictureInPixels.y
+								+ tetradOffsetWithinQuadrantInPixels.y;
+
+							for (var i = 0; i < 4; i++)
+							{
+console.log("i=" + i);
+								var pixelColorIndex =
+									reader.readIntegerFromBits(2);
+
+console.log("pixelPos=" + pixelPosInPixels);
+console.log("pixelColorIndex=" + pixelColorIndex);
+
+								picture.pixelAtPosSetToColorIndex
+								(
+									pixelPosInPixels,
+									pixelColorIndex
+								);
+
+								pixelPosInPixels.x++;
+							}
+						}
+					}
+				}
 			}
 		}
+
+		var d = document;
+		var divPictures = d.createElement("div");
+
+		for (var p = 0; p < picturesCount; p++)
+		{
+			var picture = picturesSoFar[p];
+			var pictureAsCanvas = picture.toCanvas();
+			divPictures.appendChild(pictureAsCanvas);
+		}
+
+		d.body.appendChild(divPictures);
 
 		var adventure = new Adventure
 		(
@@ -232,6 +328,8 @@ class Adventure
 			creaturesSoFar,
 			messagesSoFar
 		);
+
+		return adventure;
 	}
 
 	toBytes()
@@ -248,7 +346,7 @@ class Adventure
 
 	toJson()
 	{
-		return JSON.stringify(this, null, 4);
+		return "todo"; // JSON.stringify(this, null, 4);
 	}
 }
 
@@ -263,6 +361,11 @@ class Coords
 	static fromXY(x, y)
 	{
 		return new Coords(x, y);
+	}
+
+	toString()
+	{
+		return this.x + "x" + this.y;
 	}
 }
 
@@ -325,9 +428,9 @@ class CreatureAttributes
 		var bitStream = BitStream.fromBytes(bytes);
 		var converter = new ByteConverter();
 
-		var constitution = bitStream.readInteger(6);
-		var strength = bitStream.readInteger(5);
-		var wisdom = bitStream.readInteger(5);
+		var constitution = bitStream.readIntegerFromBits(6);
+		var strength = bitStream.readIntegerFromBits(5);
+		var wisdom = bitStream.readIntegerFromBits(5);
 
 		var attributes = new CreatureAttributes
 		(
@@ -441,7 +544,27 @@ class Picture
 	constructor(id, pixelColorIndexRows)
 	{
 		this.id = id;
-		this.pixelColorIndexRows = pixelColorIndexRows;
+		this.pixelColorIndexRows =
+			pixelColorIndexRows;
+		if (this.pixelColorIndexRows == null)
+		{
+			var size = Picture.sizeInPixels();
+			this.pixelColorIndexRows = [];
+			for (var y = 0; y < size.y; y++)
+			{
+				var pixelColorIndexRow = [];
+				for (var x = 0; x < size.x; x++)
+				{
+					pixelColorIndexRow.push(0);
+				}
+				this.pixelColorIndexRows.push(pixelColorIndexRow);
+			}
+		}
+	}
+
+	static fromId(id)
+	{
+		return new Picture(id, null);
 	}
 
 	static sizeInPixels()
@@ -453,13 +576,50 @@ class Picture
 		return this._sizeInPixels;
 	}
 
+	pixelAtPosGetColorIndex(pixelPos)
+	{
+		return this.pixelColorIndexRows[pixelPos.y][pixelPos.x];
+	}
+
+	pixelAtPosSetToColorIndex(pixelPos, colorIndex)
+	{
+		var row = this.pixelColorIndexRows[pixelPos.y];
+		row[pixelPos.x] = colorIndex;
+	}
+
 	toCanvas()
 	{
+		var colorsByIndex = // hack - Palette colors might be modified.
+		[
+			"Black",
+			"Blue",
+			"Brown",
+			"White"
+		];
+	
 		var d = document;
 		var canvas = d.createElement("canvas");
 		var pictureSizeInPixels = Picture.sizeInPixels();
 		canvas.width = pictureSizeInPixels.x;
 		canvas.height = pictureSizeInPixels.y;
+		var g = canvas.getContext("2d");
+
+		var pixelPosInPixels = new Coords();
+		for (var py = 0; py < pictureSizeInPixels.y; py++)
+		{
+			pixelPosInPixels.y = py;
+			for (var px = 0; px < pictureSizeInPixels.x; px++)
+			{
+				pixelPosInPixels.x = px;
+				var pixelColorIndex =
+					this.pixelAtPosGetColorIndex(pixelPosInPixels);
+				var pixelColor =
+					colorsByIndex[pixelColorIndex];
+				g.fillStyle = pixelColor;
+				g.fillRect(pixelPosInPixels.x, pixelPosInPixels.y, 1, 1);
+			}
+		}
+
 		return canvas;
 	}
 
@@ -478,7 +638,7 @@ class Picture
 
 			for (var x = 0; x < pictureDimensionInPixels; x++)
 			{
-				var pixelColorIndex = bitStream.readInteger(2);
+				var pixelColorIndex = bitStream.readIntegerFromBits(2);
 				pixelColorIndicesForRow.push(pixelColorIndex);
 			}
 
@@ -636,23 +796,25 @@ class Thing
 
 		//reader.byteIndexSetByteIndex(0x1C000);
 		var countGeneratedMax =
-			reader.readInteger(4);
+			reader.readIntegerFromBits(4);
 
 		//reader.byteIndexSetByteIndex(0x1C087);
-		var power = reader.readInteger(5);
-		var range = reader.readInteger(5);
-		var attackAdjustmentEncoded = reader.readInteger(4);
+		var power = reader.readIntegerFromBits(5);
+		var range = reader.readIntegerFromBits(5);
+		var attackAdjustmentEncoded =
+			reader.readIntegerFromBits(4);
 		var attackAdjustmentAsPercentage = 
 			attackAdjustmentEncoded * 5 - 40;
-		var chanceOfBreakingAsPercentage = reader.readInteger(4);
+		var chanceOfBreakingAsPercentage =
+			reader.readIntegerFromBits(4);
 		var isMagic = (reader.readBit() > 0);
 		var onlyOwnerCanUse = (reader.readBit() > 0);
-		var pictureId = reader.readInteger(6);
+		var pictureId = reader.readIntegerFromBits(6);
 
 		//reader.byteIndexSet(0x1BD00);
 		var diesOnUse = reader.readBit() > 0;
-		var weight = reader.readInteger(15);
-		var value = reader.readInteger(16);
+		var weight = reader.readIntegerFromBits(15);
+		var value = reader.readIntegerFromBits(16);
 
 		return new Thing
 		(
