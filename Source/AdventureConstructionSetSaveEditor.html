@@ -194,7 +194,7 @@ class Adventure
 		}
 
 		var picturesSoFar = [];
-		var picturesCount = 100; // ?
+		var picturesCount = 128; // ?
 		for (var p = 0; p < picturesCount; p++)
 		{
 			var picture = Picture.fromId(p);
@@ -217,87 +217,106 @@ class Adventure
 		var picture0OffsetInBytes = 0x28720; // ?
 		reader.byteIndexSet(picture0OffsetInBytes);
 
-		var pixelPosInPixels = new Coords();
+		// 4x1 tetrads of pixels
+		// are encoded as individual bytes.
+		// The order of tetrads, in bytes offset from
+		// the 0th tetrad, are:
+		//	0...----8...----
+		//	1...----9...----
+		//	2...----a...----
+		//	3...----b...----
+		//	4...----c...----
+		//	5...----d...----
+		//	6...----e...----
+		//	7...----f...----
+		//	----------------
+		//	----------------
+		//	----------------
+		//	----------------
+		//	----------------
+		//	----------------
+		//	----------------
+		//	----------------
+		// The next byte encodes the upper-left
+		// tetrad of pixels of the subsequent picture!
+		// Assuming that it'll do those two columns of tetrads
+		// in every picture next,
+		// that's 16 bytes,
+		// and there are 128 pictures(?),
+		// so if we advance 16 x 128 = 2,048 bytes,
+		// then we'll return to the next tetrad of pixels
+		// in THIS picture.
+		// Maybe it'll be the upper-left pixel
+		// of the left half
+		// of the lower-left quadrant?
+		// That position is, uh, 28F30,
+		// which is 2,048 bytes from the first,
+		// upper-left byte of the picture.
 
-		// The bytes encoding the upper-left quadrant
-		// of the second picture
-		// occur just after the upper-left quadrant
-		// of the first picture.
-		// Within a quadrant,
-		// each byte encodes a 4x1 tetrad of pixels,
-		// each pixel getting 2 bits,
-		// each pair of pixels encoding one color index
-		// from a palette of 4 colors,
-		// each palette color chosen from one of sixteen
-		// possible colors.
-		// After the first 4x1 tetrad,
-		// the next byte encodes the 4x1 tetrad
-		// immediately underneath,
-		// until eight rows,
-		// when it jumps back to the top
-		// and to the next column.
-		// Then it does another set of 8
-		// and, after that, it jumps to the
-		// corresponding quadrant of the next picture.
+		var octantPairOffsetWithinPictureInPixels = new Coords(0, 0);
+		var octantOffsetWithinPairInPixels = new Coords(0, 0);
+		var octantPosInPixels = new Coords(0, 0);
+		var tetradOffsetWithinOctantInPixels = new Coords(0, 0);
+		var pixelPosInPixels = new Coords(0, 0);
+		var pixelsPerTetrad = 4;
+		var octantsPerOctantPair = 2;
+		var octantSizeInTetrads = 8;
 
-		var quadrantOffsetWithinPictureInPixels = new Coords();
-		var tetradOffsetWithinQuadrantInPixels = new Coords();
-		var pixelPosInPixels = new Coords();
-
-		for (var qy = 0; qy < 2; qy++)
+		for (var octantPairIndex = 0; octantPairIndex < 4; octantPairIndex++)
 		{
-//console.log("qy=" + qy);
-			quadrantOffsetWithinPictureInPixels.y =
-				pictureSizeInPixels.y / 2 * qy;
-
-			for (var qx = 0; qx < 2; qx++)
+			if (octantPairIndex == 2)
 			{
-//console.log("qx=" + qx);
-				quadrantOffsetWithinPictureInPixels.x =
-					pictureSizeInPixels.x / 2 * qx;
+				// I don't know why this jump is needed,
+				// or what lies in between.
+				reader.byteIndexSet(0x2AB20);
+			}
 
-				for (var p = 0; p < picturesCount; p++)
+			octantPairOffsetWithinPictureInPixels.y =
+				(octantPairIndex  % 2)
+				* pictureSizeInPixels.y / 2;
+
+			octantPairOffsetWithinPictureInPixels.x =
+				Math.floor(octantPairIndex  / 2)
+				* pictureSizeInPixels.x / 4;
+
+			for (var p = 0; p < picturesCount; p++)
+			{
+				var picture = picturesSoFar[p];
+
+				for (var octantIndexWithinPair = 0; octantIndexWithinPair < octantsPerOctantPair; octantIndexWithinPair++)
 				{
-//console.log("p=" + p);
-					var picture = picturesSoFar[p];
+					octantOffsetWithinPairInPixels.x =
+						octantIndexWithinPair * pictureSizeInPixels.x / 2;
 
-					for (var tx = 0; tx < 2; tx++)
+					octantPosInPixels.x =
+						octantPairOffsetWithinPictureInPixels.x
+						+ octantOffsetWithinPairInPixels.x;
+
+					for (var ty = 0; ty < octantSizeInTetrads; ty++)
 					{
-//console.log("tx=" + tx);
-						tetradOffsetWithinQuadrantInPixels.x =
-							tx * 4;
+						tetradOffsetWithinOctantInPixels.y = ty;
 
+						pixelPosInPixels.y =
+							octantPairOffsetWithinPictureInPixels.y
+							+ octantOffsetWithinPairInPixels.y
+							+ tetradOffsetWithinOctantInPixels.y;
 
-						for (var ty = 0; ty < 8; ty++)
+						for (var i = 0; i < pixelsPerTetrad; i++)
 						{
-//console.log("ty=" + ty);
-							tetradOffsetWithinQuadrantInPixels.y = ty;
+							var iReversed = pixelsPerTetrad - i - 1;
 
 							pixelPosInPixels.x =
-								quadrantOffsetWithinPictureInPixels.x
-								+ tetradOffsetWithinQuadrantInPixels.x;
+								octantPosInPixels.x
+								+ iReversed;
 
-							pixelPosInPixels.y =
-								quadrantOffsetWithinPictureInPixels.y
-								+ tetradOffsetWithinQuadrantInPixels.y;
+							var pixelColorIndex =
+								reader.readIntegerFromBits(2);
 
-							for (var i = 0; i < 4; i++)
-							{
-console.log("i=" + i);
-								var pixelColorIndex =
-									reader.readIntegerFromBits(2);
-
-console.log("pixelPos=" + pixelPosInPixels);
-console.log("pixelColorIndex=" + pixelColorIndex);
-
-								picture.pixelAtPosSetToColorIndex
-								(
-									pixelPosInPixels,
-									pixelColorIndex
-								);
-
-								pixelPosInPixels.x++;
-							}
+							picture.pixelAtPosSetToColorIndex
+							(
+								pixelPosInPixels,
+								pixelColorIndex
+							);
 						}
 					}
 				}

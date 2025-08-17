@@ -985,6 +985,163 @@ Now, the pixel below that:
 Okay, this MAY be as expected.
 It's 0x800 = 2048 from the upper-left pixel set.
 
+____
+
+Okay, I tried implementing things as I understood them,
+but the resulting images don't look like anything.
+So more research.
+
+I'm gonna change the following pixels
+to blue, one at a time,
+on picture 2, which is all-black otherwise:
+
+1-------2-------
+----------------
+----------------
+----------------
+3-------4-------
+----------------
+----------------
+----------------
+
+...and see where the changes are.
+
+Pixel 1:
+
+C:\Temp\ACS>fc /b 01-Fantasy-Blank.adven.hrd adven.hrd
+Comparing files 01-Fantasy-Blank.adven.hrd and ADVEN.HRD
+0001C600: 5C 01
+0001C601: C0 00
+00028730: 00 40
+
+Interestingly, all the junk that changed
+when I changed picture 1 similarly
+and then just stayed the same
+through all the subsequent pixel-twiddling
+doesn't seem to have changed
+when I edit picture 2?
+
+Anyway, the substantive change
+for pixels 1-4, respectively, are:
+
+00028730: 00 40 (1)
+
+00028738: 00 40 (2)
+
+00028F30: 00 40 (3)
+
+00028F38: 00 40 (4)
+
+Now I'll put a breakpoint
+in my picture-parsing code
+that breaks at the start of every quadrant
+for picture 2 (but index 1, I think).
+
+quadrant:
+upper-left: 28740
+upper-right: 293c0
+lower-left: 2a040
+lower-right: 2acc0
+
+So, barely off at first, but then way, way off.
+First, since pixels 1 and 2
+are only 8 bytes away from each other,
+That means they're 32 pixel indices away from each other,
+which means that I'm wrong about quadrants:
+it must skip from the left 4x8 octant of the upper-left quadrant
+to the left octant of the upper-right quadrant.
+Who knows when it comes back to do the right side
+of the upper-left quadrant?
+Guess I'd better do some more pixels:
+
+[EDIT: This may not be right?]
+
+1---2---3---4---
+h---L-----------
+5---6---7---8---
+i---------------
+9---a---b---c---
+j---------------
+d---e---f---g---
+k---------------
+
+
+0x2400 - 0x800 = 
+
+Pixel 	Pos		Offset From 1
+----- 	---		-------------
+1		28730	0x0		=      0
+2		2AB30	0x2400  =  9,216
+3		28738	0x8		=      8
+4		2AB38	0x2408	=  9,224
+
+5		28734	0x4		=      4
+6		2AB34	0x2404	=  9,220
+7		2873C	0xC		=     12
+8		
+
+9		28F30	0x800	=  2,048
+a		2B330	0x2c00	= 11,264
+b		28F38	0x808	=  2,056
+c		2B338	0x2c08  = 11,272
+
+d
+e
+f
+g
+
+h		28731	0x1		=      1
+i		28733	0x3		=      3
+j
+k
+
+L		2AB31
+
+So first 1, then h,
+then... what?
+I think I might have got some measurements wrong.
+Trying again, with a hex editor:
+
+The order, in bytes offset from
+0x28730, is:
+
+0...----8...----
+1...----9...----
+2...----a...----
+3...----b...----
+4...----c...----
+5...----d...----
+6...----e...----
+7...----f...----
+----------------
+----------------
+----------------
+----------------
+----------------
+----------------
+----------------
+----------------
+
+The next byte encodes the upper-left pixel
+of the subsequent picture!
+Assuming that it'll do those two columns of tetrads
+in every picture next.
+So, that's 16 bytes,
+so I guess if you advance (16 x number of pictures) bytes,
+then we'll return to some other pixel
+in THIS picture.
+Maybe it'll be the upper-left pixel
+of the left half
+of the lower-left quadrant?
+That position is, uh, 28F30,
+which is 2,048 bytes from the first,
+upper-left byte of the picture.
+So, dividing 2,048 by 16,
+you get, uh, 2^11 / 2^4 = 2^7 = 128
+So 128 pictures?
+I'll work on those assumptions, then,
+and then maybe half the picture will look right.
+
 
 Text String Encodings
 ---------------------
