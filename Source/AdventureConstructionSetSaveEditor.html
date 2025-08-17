@@ -389,6 +389,11 @@ class Coords
 		return new Coords(x, y);
 	}
 
+	clone()
+	{
+		return new Coords(this.x, this.y);
+	}
+
 	multiply(other)
 	{
 		this.x *= other.x;
@@ -968,12 +973,20 @@ class WorldMap
 	toCanvas(adventure)
 	{
 		var d = document;
-		var mapAsCanvas = d.createElement("canvas");
-		var graphics = mapAsCanvas.getContext("2d");
 
 		var mapSizeInCells = this.sizeInCells;
 		var pictureSizeInPixels = Picture.sizeInPixels();
 		var cellSizeInPixels = pictureSizeInPixels;
+		var mapSizeInPixels =
+			mapSizeInCells
+				.clone()
+				.multiply(cellSizeInPixels);
+
+		var mapAsCanvas = d.createElement("canvas");
+		mapAsCanvas.width = mapSizeInPixels.x;
+		mapAsCanvas.height = mapSizeInPixels.y;
+		var graphics = mapAsCanvas.getContext("2d");
+
 		var cellPosInCells = new Coords(0, 0);
 		var drawPosInPixels = new Coords(0, 0);
 		for (var y = 0; y < mapSizeInCells.y; y++)
@@ -1023,7 +1036,7 @@ class WorldMap
 		var name =
 			converter.bytesToString(reader.readBytes(20) );
 
-		reader.byteIndexSet(0x700);
+		reader.byteIndexSet(0x700 + 234); // hack
 		var mapSizeInCells = new Coords(40, 40);
 		var bitsPerCell = 4; // 16 terrains.
 		var mapCellsCount =
