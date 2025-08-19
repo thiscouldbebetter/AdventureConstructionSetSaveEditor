@@ -630,10 +630,57 @@ monster percent		0x1cd5a.lo			?		2% = 1, 4% = 2, etc.	?
 Regions
 -------
 
-Added new region "RegionRegionRegion12",
+Added new region "RegionRegionRegion01",
 with no rooms.
 It modified like 50ish bytes
 in various places.
+
+0001C229: 00 01
+
+1C441: 41 52 // These are the name.
+1C442: 43 45
+1C443: 53 47
+1C444: 20 49
+1C445: 57 4F
+1C446: 49 4E
+1C447: 4C 52
+1C448: 4C 45
+1C449: 20 47
+1C44A: 50 49
+1C44B: 49 4F
+1C44C: 43 4E
+1C44D: 4B 52
+1C44E: 20 45
+1C44F: 4E 47
+1C450: 41 49
+1C451: 4D 4F
+1C452: 45 4E
+1C453: 20 30
+1C454: 20 31
+
+1D301: 00 A5 // Unknown what these are.
+1D302: 00 05
+1D303: 00 F0
+1D305: 00 F2
+1D307: 00 92
+1D308: 00 01
+
+1D885: 00 02
+1D887: 00 02
+1D889: 00 02
+1D88B: 00 02
+1D88D: 00 02
+1D88F: 00 02
+1D891: 00 02
+1D893: 00 02
+1D895: 00 02
+1D897: 00 02
+1D899: 00 02
+1D89B: 00 02
+1D89D: 00 02
+1D89F: 00 02
+1D8A1: 00 02
+1D8A3: 00 02
 
 Field			Offset			Size		Values			Notes
 -----			------			----						-----
@@ -643,14 +690,54 @@ Region Name		0x1C441-454		20 bytes
 ?				0x1D885-1D8A3	?			All 0002's.		Skips every other byte.
 
 
+
+
 Rooms
 -----
-Added a room of default size (3x3?)
-to RegionRegionRegion12,
-at the default cursor position,
-named RoomRoomRoom123 (I think).
+
+Added a room of default size (3x3)
+to RegionRegionRegion01,
+at the upper-left corner,
+named RoomRoomRoom001.
 Its auto-assigned ID, from the UI, seems to be 16.
 That modified like 18-20 bytes.
+(Weirdly, it didn't seem to modify the two it always does.)
+
+0001D300: 00 01
+0001D309: 00 13
+0001D30A: 00 22
+
+0001D6F3: 00 E7
+0001D6F4: 00 72
+0001D6F5: 00 1F
+0001D6F6: 00 54
+0001D6F7: 00 DA
+0001D6F8: 00 5F
+0001D6F9: 00 25
+0001D6FA: 00 60
+0001D6FB: 00 33
+0001D6FC: 00 60
+
+Then I enlarged to max size (15x10)
+and here's the changes:
+(This time it did change those two bytes it always does.)
+
+0001D300: 00 01
+0001D309: 00 13
+0001D30A: 00 E9 // Okay, clearly the (decremented) size is here.
+
+0001D6F3: 00 E7
+0001D6F4: 00 72
+0001D6F5: 00 1F
+0001D6F6: 00 54
+0001D6F7: 00 DA
+0001D6F8: 00 5F
+0001D6F9: 00 25
+0001D6FA: 00 60
+0001D6FB: 00 33
+0001D6FC: 00 60
+
+
 There seemed to be a lot of bytes in the middle already.
 
 Field			Offset			Size		Values			Notes

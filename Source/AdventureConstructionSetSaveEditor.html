@@ -13,12 +13,44 @@
 	</p>
 
 	<div>
-		<label>Adventure as JSON:</label>
+		<label>Adventure File:</label>
 		<input
 			id="inputFile"
 			type="file"
 			onchange="UiEventHandler.inputFile_Changed(this)"
 		></input>
+	</div>
+
+	<div>
+		<button
+			onclick="UiEventHandler.buttonSelect_Clicked()"
+		>
+			Select:
+		</button>
+		<select
+			id="selectObjectToDrawType"
+		>
+			<option>Creature</option>
+			<option>Picture</option>
+			<option>Region</option>
+			<option>Room</option>
+			<option>Thing</option>
+			<option>World Map</option>
+		</select>
+		<label>with ID:</label>
+		<input
+			id="inputObjectToDrawId"
+			type="number"
+			min="0" max="128"
+			value="1"
+		></input>
+		<div id="divObjectToDraw">
+			[nothing drawn yet]
+		</div>
+	</div>
+
+	<div>
+		<label>Object Selected as JSON:</label>
 		<br />
 		<textarea
 			id="textareaJson"
@@ -45,9 +77,129 @@
 
 class UiEventHandler
 {
+	static _adventureLoaded;
+	static adventureLoaded()
+	{
+		return this._adventureLoaded;
+	}
+
+	static adventureLoadedSet(value)
+	{
+		this._adventureLoaded = value;
+	}
+
 	static buttonSave_Clicked()
 	{
 		alert("Not yet implemented!");
+	}
+
+	static buttonSelect_Clicked()
+	{
+		var d = document;
+
+		var divObjectToDraw =
+			d.getElementById("divObjectToDraw");
+		divObjectToDraw.innerHTML = "";
+		var textareaJson =
+			d.getElementById("textareaJson");
+		textareaJson.value = "[none]";
+
+		var adventure = this.adventureLoaded();
+		if (adventure == null)
+		{
+			divObjectToDraw.innerHTML =
+				"[nothing to draw yet]";
+		}
+		else
+		{
+			var selectObjectToDrawType =
+				d.getElementById("selectObjectToDrawType");
+			var inputObjectToDrawId =
+				d.getElementById("inputObjectToDrawId");
+
+			var objectToDrawTypeName =
+				selectObjectToDrawType.value;
+			var objectToDrawId =
+				parseInt(inputObjectToDrawId.value);
+			var objectToDrawIndex =
+				objectToDrawId - 1;
+
+			if (objectToDrawTypeName == "Creature")
+			{
+				if (objectToDrawId == 0)
+				{
+					var creatures = adventure.creatures;
+					var creaturesAsCanvases =
+						creatures.map(x => x.toCanvas(adventure) );
+					divObjectToDraw.appendChild(...creaturesAsCanvases);
+					var creaturesAsJson =
+						Creature.manyToJson(creatures);
+					textareaJson.value = creaturesAsJson;
+				}
+				else
+				{
+					var creature =
+						adventure.creatureByIndex(objectToDrawIndex);
+					var creatureAsCanvas =
+						creature.toCanvas(adventure);
+					divObjectToDraw.appendChild(creatureAsCanvas);
+					var creatureAsJson = creature.toJson();
+					textareaJson.value = creatureAsJson;
+				}
+			}
+			else if (objectToDrawTypeName == "Picture")
+			{
+				var pictures = adventure.pictures;
+
+				if (objectToDrawId == 0)
+				{
+					for (var p = 0; p < pictures.length; p++)
+					{
+						var picture = pictures[p];
+						var pictureAsCanvas = picture.toCanvas();
+						divObjectToDraw.appendChild(pictureAsCanvas);
+					}
+					var picturesAsJson = Picture.manyToJson(pictures);
+					textareaJson.value = picturesAsJson;
+				}
+				else
+				{
+					var picture = pictures[objectToDrawIndex];
+					var pictureAsCanvas = picture.toCanvas();
+					divObjectToDraw.appendChild(pictureAsCanvas);
+					var pictureAsJson = picture.toJson();
+					textareaJson.value = pictureAsJson;
+				}
+			}
+			else if (objectToDrawTypeName == "Region")
+			{
+				var regions = adventure.regions;
+				var region = regions[objectToDrawIndex];
+				var regionAsCanvas = region.toCanvas();
+				divObjectToDraw.appendChild(regionAsCanvas);
+				var regionAsJson = region.toJson();
+				textareaJson.value = regionAsJson;
+			}
+			else if (objectToDrawTypeName == "Room")
+			{
+				alert("todo");
+			}
+			else if (objectToDrawTypeName == "Thing")
+			{
+				alert("todo");
+			}
+			else if (objectToDrawTypeName == "World Map")
+			{
+				var worldMap = adventure.worldMap;
+				var worldMapAsCanvas =
+					worldMap.toCanvas(adventure);
+				divObjectToDraw.appendChild(worldMapAsCanvas);
+			}
+			else
+			{
+				throw new Error("Unrecognized!");
+			}
+		}
 	}
 
 	static inputFile_Changed(inputFile)
@@ -64,7 +216,11 @@ class UiEventHandler
 					adventureAsBinaryString.split("").map(x => x.charCodeAt(0) );
 				var adventure =
 					Adventure.fromBytes(adventureAsBytes);
+
+				UiEventHandler.adventureLoadedSet(adventure);
+
 				var adventureAsJson = adventure.toJson();
+
 				var d = document;
 				var textareaJson =
 					d.getElementById("textareaJson");
@@ -101,6 +257,11 @@ class Adventure
 		this.things = things;
 		this.creatures = creatures;
 		this.messages = messages;
+	}
+
+	pictureById(pictureId)
+	{
+		return this.pictureByIndex(pictureId - 1);
 	}
 
 	pictureByIndex(pictureIndex)
@@ -165,17 +326,29 @@ class Adventure
 		var adventureName = converter.bytesToString(reader.readBytes(14) );
 		var authorName = converter.bytesToString(reader.readBytes(14) );
 
-		reader.byteIndexSet(0x1C229);
+		//reader.byteIndexSet(0x1C229);
 		var regionCount = reader.readByte();
-		var regionsSoFar = [];
-		var regionsOffsetInBytes = 0x1C441;
-		var regionSizeInBytes = 0x200;
-		reader.byteIndexSet(regionsOffsetInBytes);
+		var regions = [];
+		var regionNamesOffsetInBytes = 0x1C441;
+		var regionNameSizeInBytes = 20;
+		reader.byteIndexSet(regionNamesOffsetInBytes);
 		for (var rg = 0; rg < regionCount; rg++)
 		{
-			var regionAsBytes = reader.readBytes(regionSizeInBytes);
-			var region = Region.fromBytes(regionAsBytes);
-			regionsSoFar.push(region);
+			var regionNameAsBytes =
+				reader.readBytes(regionNameSizeInBytes);
+			var regionName =
+				converter.bytesToString(regionNameAsBytes);
+			var region = Region.fromIdAndName(rg, regionName);
+			regions.push(region);
+		}
+
+		//reader.byteIndexSet(todo);
+		for (var rg = 0; rg < regionCount; rg++)
+		{
+			var region = regions[rg];
+			var regionRooms = [];
+			var roomCount = 10;
+			// todo
 		}
 
 		var worldMapOffsetInBytes = 0x1C000; // hack
@@ -328,16 +501,6 @@ class Adventure
 			}
 		}
 
-		var d = document;
-		var divPictures = d.createElement("div");
-		for (var p = 0; p < picturesCount; p++)
-		{
-			var picture = pictures[p];
-			var pictureAsCanvas = picture.toCanvas();
-			divPictures.appendChild(pictureAsCanvas);
-		}
-		d.body.appendChild(divPictures);
-
 		var adventure = new Adventure
 		(
 			adventureName,
@@ -345,15 +508,11 @@ class Adventure
 			musicalThemeId,
 			pictures,
 			worldMap,
-			regionsSoFar,
+			regions,
 			thingsSoFar,
 			creaturesSoFar,
 			messagesSoFar
 		);
-
-		var worldMapAsCanvas =
-			worldMap.toCanvas(adventure);
-		d.body.appendChild(worldMapAsCanvas);
 
 		return adventure;
 	}
@@ -416,13 +575,24 @@ class Coords
 
 class Creature
 {
-	constructor(id, name, typeId, attributes, other)
+	constructor(id, name, typeId, pictureId, attributes, other)
 	{
 		this.id = id;
 		this.name = name;
 		this.typeId = typeId;
+		this.pictureId = pictureId;
 		this.attributes = attributes;
 		this.other = other;
+	}
+
+	picture(adventure)
+	{
+		return adventure.pictureById(this.pictureId);
+	}
+
+	toCanvas(adventure)
+	{
+		return this.picture(adventure).toCanvas();
 	}
 
 	// Bytes.
@@ -434,6 +604,7 @@ class Creature
 		var id = -1; // todo
 		var name = "todo";
 		var typeId = -1; // todo
+		var pictureId = 1; // todo
 		var attributesAsBytes = reader.readBytes(10);
 		var attributes =
 			CreatureAttributes.fromBytes(attributesAsBytes);
@@ -444,6 +615,7 @@ class Creature
 			id,
 			name,
 			typeId,
+			pictureId,
 			attributes,
 			other
 		);
@@ -454,6 +626,29 @@ class Creature
 	toBytes()
 	{
 		throw new Error("todo");
+	}
+
+	// JSON.
+
+	static manyToJson(creatures)
+	{
+		var creaturesAsJson =
+			creatures.map(x => x.toJson() );
+		var creaturesAsJsonJoined =
+			creaturesAsJson.join(",\n");
+		var returnValue =
+			"{\n" + creaturesAsJsonJoined + "\n}";
+		return returnValue;
+	}
+
+	static fromJson(creatureAsJson)
+	{
+		throw new Error("todo");
+	}
+
+	toJson()
+	{
+		return JSON.stringify(this, null, 4);
 	}
 }
 
@@ -704,6 +899,33 @@ class Picture
 	{
 		throw new Error("todo");
 	}
+
+	// JSON.
+
+	static manyToJson(pictures)
+	{
+		var picturesAsJson =
+			pictures.map(x => x.toJson() );
+		var picturesAsJsonJoined =
+			"{\n"
+			+ picturesAsJson.join(",\n");
+			+ "\n}";
+		return picturesAsJsonJoined;
+	}
+
+	toJson()
+	{
+		var pixelColorIndexRowsAsStrings =
+			this.pixelColorIndexRows.map(x => x.join("") );
+
+		var objectToStringify =
+		{
+			_typeName: Picture.name,
+			id: this.id,
+			pixelColorIndexRows: pixelColorIndexRowsAsStrings
+		};
+		return JSON.stringify(objectToStringify, null, 4);
+	}
 }
 
 class Region
@@ -712,7 +934,12 @@ class Region
 	{
 		this.id = id;
 		this.name = name;
-		this.rooms = rooms;
+		this.rooms = rooms || [];
+	}
+
+	static fromIdAndName(id, name)
+	{
+		return new Region(id, name, null);
 	}
 
 	// Bytes.
@@ -725,9 +952,11 @@ class Region
 	static fromBytes(bytes)
 	{
 		var reader = BitStream.fromBytes(bytes);
+		var converter = new ByteConverter();
 
 		var regionId = -1; // todo
-		var regionName = reader.readString(20);
+		var regionName =
+			converter.bytesToString(reader.readBytes(20) );
 
 		var rooms = [];
 
