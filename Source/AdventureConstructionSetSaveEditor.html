@@ -575,14 +575,26 @@ class Coords
 
 class Creature
 {
-	constructor(id, name, typeId, pictureId, attributes, other)
+	constructor
+	(
+		id,
+		name,
+		typeId,
+		pictureId,
+		attributes,
+		strategyId,
+		mimicsOpponent,
+		equipment
+	)
 	{
 		this.id = id;
 		this.name = name;
 		this.typeId = typeId;
 		this.pictureId = pictureId;
 		this.attributes = attributes;
-		this.other = other;
+		this.strategyId = strategyId;
+		this.mimicsOpponent = mimicsOpponent;
+		this.equipment = equipment;
 	}
 
 	picture(adventure)
@@ -654,11 +666,40 @@ class Creature
 
 class CreatureAttributes
 {
-	constructor(constitution, unknown, wisdom)
+	constructor
+	(
+		constitution,
+		wisdom,
+		strength,
+		dexterity,
+		size,
+
+		lifeForce,
+		power,
+		speed, // action points?
+
+		missileSkill,
+		meleeSkill,
+		armorSkill,
+		dodgeSkill,
+		parrySkill
+	)
 	{
 		this.constitution = constitution;
-		this.unknown = unknown;
 		this.wisdom = wisdom;
+		this.strength = strength;
+		this.dexterity = dexterity;
+		this.size = size;
+
+		this.lifeForce = lifeForce;
+		this.power = power;
+		this.speed = speed;
+
+		this.missileSkill = missileSkill;
+		this.meleeSkill = meleeSkill;
+		this.armorSkill = armorSkill;
+		this.dodgeSkill = dodgeSkill;
+		this.parrySkill = parrySkill;
 	}
 
 	// Bytes.
@@ -689,6 +730,184 @@ class CreatureAttributes
 	}
 }
 
+class CreatureEquipment
+{
+	constructor
+	(
+		wealth,
+		itemsHeld,
+		itemReadiedArmor,
+		itemReadiedWeapon
+	)
+	{
+		this.wealth = wealth;
+		this.itemsHeld = itemsHeld;
+		this.itemReadiedArmor = itemReadiedArmor;
+		this.itemReadiedWeapon = itemReadiedWeapon;
+	}
+}
+
+class CreatureStrategy
+{
+	constructor
+	(
+		id, braveryLevelId, agressionLevelId, allegianceId
+	)
+	{
+		this.id = id;
+		this.braveryLevelId = braveryLevelId;
+		this.agressionLevelId = aggressionLevelId;
+		this.allegianceId = allegianceId;
+	}
+
+	static byId(id)
+	{
+		return this.Instances().byId(id);
+	}
+}
+
+class CreatureStrategyAggressionLevel
+{
+	constructor(id, name)
+	{
+		this.id = id;
+		this.name = name;
+	}
+
+	static byId(id)
+	{
+		return this.Instances().byId(id);
+	}
+
+	static Instances()
+	{
+		if (this._instances == null)
+		{
+			this._instances =
+				new CreatureStrategyAggressionLevel_Instances();
+		}
+		return this._instances;
+	}
+}
+
+class CreatureStrategyAggressionLevel_Instances
+{
+	constructor()
+	{
+		var csal = (id, n) => new CreatureStrategyAggressionLevel(id, n);
+
+		this.Agressive = csal(1, "Aggressive");
+		this.Peaceful = csal(2, "Peaceful");
+
+		this._All =
+		[
+			this.Aggressive,
+			this.Peaceful
+		];
+	}
+
+	byId(id)
+	{
+		return this._All.find(x => x.id == id);
+	}
+}
+
+class CreatureStrategyAllegiance
+{
+	constructor(id, name)
+	{
+		this.id = id;
+		this.name = name;
+	}
+
+	static byId(id)
+	{
+		return this.Instances().byId(id);
+	}
+
+	static Instances()
+	{
+		if (this._instances == null)
+		{
+			this._instances =
+				new CreatureStrategyAllegiance_Instances();
+		}
+		return this._instances;
+	}
+}
+
+class CreatureStrategyAllegiance_Instances
+{
+	constructor()
+	{
+		var csa = (id, n) => new CreatureStrategyAllegiance(id, n);
+
+		this.Enemy = csa("Aggressive");
+		this.Friend = csa("Peaceful");
+		this.Neutral = csa("Neutral");
+		this.Thief = csa("Thief");
+
+		this._All =
+		[
+			this.Enemy,
+			this.Friend,
+			this.Neutral,
+			this.Thief
+		];
+	}
+
+	byId(id)
+	{
+		return this._All.find(x => x.id == id);
+	}
+}
+
+class CreatureStrategyBraveryLevel
+{
+	constructor(id, name)
+	{
+		this.id = id;
+		this.name = name;
+	}
+
+	static byId(id)
+	{
+		return this.Instances().byId(id);
+	}
+
+	static Instances()
+	{
+		if (this._instances == null)
+		{
+			this._instances =
+				new CreatureStrategyBraveryLevel_Instances();
+		}
+		return this._instances;
+	}
+}
+
+class CreatureStrategyBraveryLevel_Instances
+{
+	constructor()
+	{
+		var csbl = (id, n) => new CreatureStrategyBraveryLevel(id, n);
+
+		this.Brave = csbl(1, "Brave");
+		this.Cautious = csbl(2, "Cautious");
+
+		this._All =
+		[
+			this.Brave,
+			this.Cautious
+		];
+	}
+
+	byId(id)
+	{
+		return this._All.find(x => x.id == id);
+	}
+}
+
 class CreatureType
 {
 	constructor(id, name)
@@ -712,14 +931,15 @@ class CreatureType_Instances
 {
 	constructor()
 	{
-		this.PersonsFriends = new CreatureType(1, "Persons-Friends");
-		this.PersonsEnemies = new CreatureType(2, "Persons-Enemies");
-		this.PersonsNeutral = new CreatureType(3, "Persons-Neutral");
-		this.PersonsThieves = new CreatureType(4, "Persons-Thieves");
-		this.BeastsHostile 	= new CreatureType(5, "Beasts-Hostile");
-		this.BeastsNeutral 	= new CreatureType(6, "Beasts-Neutral");
-		this.EvilBeings 	= new CreatureType(7, "Evil Beings");
-		this.YourNewIdea 	= new CreatureType(8, "Your New Idea");
+		var ct = (id, name) => new CreatureType(id, name);
+		this.PersonsFriends = ct(1, "Persons-Friends");
+		this.PersonsEnemies = ct(2, "Persons-Enemies");
+		this.PersonsNeutral = ct(3, "Persons-Neutral");
+		this.PersonsThieves = ct(4, "Persons-Thieves");
+		this.BeastsHostile 	= ct(5, "Beasts-Hostile");
+		this.BeastsNeutral 	= ct(6, "Beasts-Neutral");
+		this.EvilBeings 	= ct(7, "Evil Beings");
+		this.YourNewIdea 	= ct(8, "Your New Idea");
 
 		this._All =
 		[
@@ -733,6 +953,123 @@ class CreatureType_Instances
 			this.YourNewIdea,
 		];
 	}
+
+	byId(id)
+	{
+		return this._All.find(x => x.id == id);
+	}
+}
+
+class Effect
+{
+	constructor(effectTypeId, effectParameter)
+	{
+		this.effectTypeId = effectTypeId;
+		this.effectParameter = effectParameter;
+	}
+
+	apply()
+	{
+		var effectType = this.effectType();
+	}
+
+	effectType()
+	{
+		return EffectType.byId(this.effectTypeId);
+	}
+}
+
+class EffectType
+{
+	constructor(name, text, apply)
+	{
+		this.name = name;
+		this.text = text;
+		this._apply = apply;
+	}
+
+	static Instances()
+	{
+		if (this._instances == null)
+		{
+			this._instances = new EffectType_Instances();
+		}
+		return this._instances;
+	}
+
+	static byId(id)
+	{
+		return this.Instances().byId(id);
+	}
+
+	apply()
+	{
+		this._apply();
+	}
+}
+
+class EffectType_Instances
+{
+	constructor()
+	{
+		var et = (n, a) => new EffectType(n, a || this.apply_DoNothing);
+
+		this.DoNothing 				= et("Do Nothing", this.apply_DoNothing);
+
+		this.ActivateEverything		= et("Activate Everything");
+		this.AttributeDecrease		= et("Decrease Attribute");
+		this.AttributeIncrease		= et("Increase Attribute");
+		this.CreatureSummonOrBanish = et("Summon or Banish Creature");
+		this.ItemAddToRoom			= et("Add Item to Room");
+		this.ItemGive 				= et("Give Item");
+		this.ItemsUncarriedRemove	= et("Remove Uncarried Items");
+		this.KillIfItemNotHeld 		= et("Kill Anyone Who Lacks");
+		this.LifeForceChange		= et("Change Life Force");
+		this.MagicDefenseDecrease	= et("Decrease Magic Defense");
+		this.MagicDefenseIncrease	= et("Increase Magic Defense");
+		this.MessageLongDisplay 	= et("Display Long Message");
+		this.MusicPlay				= et("Play Music");
+		this.PowerChange			= et("Change Power");
+
+		this._All =
+		[
+			this.DoNothing,
+
+			this.ActivateEverything,
+			this.AttributeDecrease,
+			this.AttributeIncrease,
+			this.CreatureSummonOrBanish,
+			this.ItemAdd,
+			this.ItemsUncarriedRemove,
+			this.KillIfItemNotHeld,
+			this.LifeForceChange,
+			this.MagicDefenseDecrease,
+			this.MagicDefenseIncrease,
+			this.MessageLongDisplay,
+			this.MusicPlay,
+			this.PowerChange,
+		];
+	}
+
+	apply_DoNothing()
+	{
+		// Do nothing.
+	}
+
+	apply_ActivateEverything() {}
+	apply_AttributeDecrease() {}
+	apply_AttributeIncrease() {}
+	apply_CreatureSummonOrBanish() {}
+	apply_ItemAdd() {}
+	apply_ItemsUncarriedRemove() {}
+	apply_KillIfItemNotHeld() {}
+	apply_LifeForceChange() {}
+	apply_MagicDefenseDecrease() {}
+	apply_MagicDefenseIncrease() {}
+	apply_MessageLongDisplay() {}
+	apply_MusicPlay() {}
+	apply_PowerChange() {}
+
 }
 
 class Message
@@ -1034,29 +1371,17 @@ class Thing
 		id,
 		name,
 		typeId,
-		countGeneratedMax,
-		attackAdjustmentAsPercentage,
-		chanceOfBreakingAsPercentage,
-		isMagic,
-		othersCanUse,
 		pictureId,
-		disappearsOnUse,
-		weight,
-		value
+		countGeneratedMax,
+		properties
 	)
 	{
 		this.id = id;
 		this.name = name;
 		this.typeId = typeId;
-		this.countGeneratedMax = countGeneratedMax;
-		this.attackAdjustmentAsPercentage = attackAdjustmentAsPercentage;
-		this.chanceOfBreakingAsPercentage = chanceOfBreakingAsPercentage;
-		this.isMagic = isMagic;
-		this.othersCanUse = othersCanUse;
 		this.pictureId = pictureId;
-		this.disappearsOnUse = disappearsOnUse;
-		this.weight = weight;
-		this.value = value;
+		this.countGeneratedMax = countGeneratedMax;
+		this.properties = properties;
 	}
 
 	// Bytes.
@@ -1095,26 +1420,154 @@ class Thing
 		var weight = reader.readIntegerFromBits(15);
 		var value = reader.readIntegerFromBits(16);
 
+		var properties = []; // todo
+
 		return new Thing
 		(
 			id,
 			name,
 			typeId,
-			countGeneratedMax,
-			attackAdjustmentAsPercentage,
-			chanceOfBreakingAsPercentage,
-			isMagic,
-			onlyOwnerCanUse,
 			pictureId,
-			diesOnUse,
-			weight,
-			value
+			countGeneratedMax,
+			properties
 		);
 	}
 
 	toBytes()
 	{
 		throw new Error("todo");
+	}
+}
+
+class ThingPropertiesArmor
+{
+	constructor
+	(
+		power,
+		attackAdjustmentAsPercentage,
+		chanceOfBreakingAsPercentage
+	)
+	{
+		this.power = power;
+		this.attackAdjustmentAsPercentage =
+			attackAdjustmentAsPercentage;
+		this.chanceOfBreakingAsPercentage =
+			chanceOfBreakingAsPercentage;
+	}
+}
+
+class ThingPropertiesCarryable
+{
+	constructor
+	(
+		weight,
+		value,
+		magical,
+		disappearsWhenDropped,
+		disappearsWhenUsed
+	)
+	{
+		this.weight = weight;
+		this.value = value;
+		this.magical = magical;
+		this.disappearsWhenDropped = disappearsWhenDropped;
+		this.disappearsWhenUsed = disappearsWhenUsed;
+		this.disappearsWhenHolderDies = disappearsWhenHolderDies;
+	}
+}
+
+class ThingPropertiesEffector
+{
+	// "Magic Spell".
+	constructor()
+	{
+		this.powerToTrigger = powerToTrigger;
+		this.effectWhenTriggered = effectWhenTriggered;
+	}
+}
+
+class ThingPropertiesObstacle
+{
+	constructor(effectWhenBumped)
+	{
+		this.effectWhenBumped = effectWhenBumped;
+	}
+}
+
+class ThingPropertiesSpace
+{
+	constructor
+	(
+		itemNeededToPassId,
+		itemNeededToPassIsDestroyed,
+		itemForbiddenToPassId,
+		textToShowWhenBlocked,
+		effectWhenSteppedOn
+	)
+	{
+		this.itemNeededToPassId = itemNeededToPassId;
+		this.itemNeededToPassIsDestroyed =
+			itemNeededToPassIsDestroyed;
+		this.itemForbiddenToPassId = itemForbiddenToPassId;
+		this.textToShowWhenBlocked = textToShowWhenBlocked;
+		this.effectWhenSteppedOn = effectWhenSteppedOn;
+	}
+}
+
+class ThingPropertiesSpaceCustom
+{
+	constructor()
+	{
+		// todo
+	}
+}
+
+class ThingPropertiesStore
+{
+	constructor()
+	{}
+}
+
+class ThingPropertiesDevice
+{
+	// "Magic Item".
+
+	constructor
+	(
+		triggersWhenPickedUp,
+		triggersWhenUsed,
+		triggersWhenDropped,
+		effectWhenTriggered
+	)
+	{
+		this.effectWhenUsed = effectWhenUsed;
+	}
+}
+
+class ThingPropertiesUsable
+{
+	constructor(durable)
+	{
+		this.durable = durable;
+	}
+}
+
+class ThingPropertiesWeapon
+{
+	constructor
+	(
+		power,
+		range,
+		attackAdjustmentAsPercentage,
+		chanceOfBreakingAsPercentage
+	)
+	{
+		this.power = power;
+		this.range = range;
+		this.attackAdjustmentAsPercentage =
+			attackAdjustmentAsPercentage;
+		this.chanceOfBreakingAsPercentage =
+			chanceOfBreakingAsPercentage;
 	}
 }
 
