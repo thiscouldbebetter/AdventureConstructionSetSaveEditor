@@ -627,6 +627,51 @@ monster percent		0x1cd5a.lo			?		2% = 1, 4% = 2, etc.	?
 ?					0x1ce52-57			?
 
 
+Creature Definitions
+--------------------
+
+I changed the blank fantasy adven.hrd
+by prefixing the name of the first two creatures,
+namely, Achilles and Ali Baba,
+with 1 and 2 respectively.
+Then, the file compare shows these differences
+(minus the two bytes that ALways change):
+
+	1B280: C0 EB
+	1B281: 06 A8
+	1B282: 2C 74
+	1B283: 3A 33
+	1B284: 38 DB
+	1B285: 22 4B
+
+	1B28A: 29 34
+	1B28B: 08 AF
+	1B28C: 51 42
+	1B28D: 00 38
+	1B28E: A8 91
+	1B28F: 0C 06
+
+So, two sets of six bytes,
+separated by just ten bytes.
+Darn, all the names are listed separate, huh?
+
+Okay, I restored the names
+and upped Achilles and Ali Baba's constitution scores
+by 1 (I think) each.
+Here's that diff:
+
+	19400: 9B 9C
+	19425: 0F 11
+
+Yeesh, that's a long way off
+from the names.
+And it precedes them, surprisingly.
+So they're 0x25 = 37 bytes apart.
+That's a strange number.
+They must be really packed in there.
+
+
+
 Regions
 -------
 

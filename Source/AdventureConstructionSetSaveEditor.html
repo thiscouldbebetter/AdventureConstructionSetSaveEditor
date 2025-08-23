@@ -121,8 +121,6 @@ class UiEventHandler
 				selectObjectToDrawType.value;
 			var objectToDrawId =
 				parseInt(inputObjectToDrawId.value);
-			var objectToDrawIndex =
-				objectToDrawId - 1;
 
 			if (objectToDrawTypeName == "Creature")
 			{
@@ -139,7 +137,7 @@ class UiEventHandler
 				else
 				{
 					var creature =
-						adventure.creatureByIndex(objectToDrawIndex);
+						adventure.creatureById(objectToDrawId);
 					var creatureAsCanvas =
 						creature.toCanvas(adventure);
 					divObjectToDraw.appendChild(creatureAsCanvas);
@@ -173,8 +171,7 @@ class UiEventHandler
 			}
 			else if (objectToDrawTypeName == "Region")
 			{
-				var regions = adventure.regions;
-				var region = regions[objectToDrawIndex];
+				var region = adventure.regionsById(objectToDrawId);
 				var regionAsCanvas = region.toCanvas();
 				divObjectToDraw.appendChild(regionAsCanvas);
 				var regionAsJson = region.toJson();
@@ -259,6 +256,12 @@ class Adventure
 		this.messages = messages;
 	}
 
+	creatureById(creatureId)
+	{
+		var creatureIndex = creatureId - 1;
+		return this.creatures[creatureIndex];
+	}
+
 	pictureById(pictureId)
 	{
 		return this.pictureByIndex(pictureId - 1);
@@ -267,6 +270,12 @@ class Adventure
 	pictureByIndex(pictureIndex)
 	{
 		return this.pictures[pictureIndex];
+	}
+
+	regionById(regionId)
+	{
+		var regionIndex = regionId - 1;
+		return this.regions[regionIndex];
 	}
 
 	// Bytes.
@@ -280,7 +289,7 @@ class Adventure
 
 		var messagesOffsetInBytes = 0x16C00;
 		var messageSizeInBytes = 0x100;
-		var messagesSoFar = [];
+		var messages = [];
 		var messagesCount = 255; // todo
 		reader.byteIndexSet(messagesOffsetInBytes);
 		for (var m = 0; m < messagesCount; m++)
@@ -288,38 +297,14 @@ class Adventure
 			var messageAsBytes =
 				reader.readBytes(messagesOffsetInBytes);
 			var message = converter.bytesToString(messageAsBytes);
-			messagesSoFar.push(message);
+			messages.push(message);
 		}
 
-		var thingNamesOffsetInBytes = 0x1B800;
-		var thingNameSizeInBytes = 10;
-		var thingsCount = 100; // ?
+		var things =
+			this.fromBytes_Things(reader, converter, textDecoder);
 
-		var thingNamesSoFar = [];
-		for (var t = 0; t < thingsCount; t++)
-		{
-			var thingNameEncodedAsBytes =
-				reader.readBytes(thingNameSizeInBytes);
-			var thingName =
-				textDecoder.bytesDecodeToString(thingNameEncodedAsBytes);
-			thingNamesSoFar.push(thingName);
-		}
-
-		var thingsOffsetInBytes = 0x1C000; // ?
-		reader.byteIndexSet(thingsOffsetInBytes);
-		var thingsSoFar = [];
-		var thingSizeInBytes = 4096; // ?
-		for (var t = 0; t < thingsCount; t++)
-		{
-			var thingId = t + 1;
-			var thingName = thingNamesSoFar[t];
-			var thingAsBytes = reader.readBytes(thingSizeInBytes);
-			var thing = Thing.fromIdNameAndBytes
-			(
-				thingId, thingName, thingAsBytes
-			);
-			thingsSoFar.push(thing);
-		}
+		var creatures =
+			this.fromBytes_Creatures(reader, converter, textDecoder);
 
 		var adventureNameOffsetInBytes = 0x1C200;
 		reader.byteIndexSet(adventureNameOffsetInBytes);
@@ -359,17 +344,6 @@ class Adventure
 
 		reader.byteIndexSet(0x1C56e);
 		var musicalThemeId = reader.readByte();
-
-		var creaturesOffsetInBytes = 0x1CB0A;
-		var creatureSizeInBytes = 0x300; // todo
-		var creaturesCount = 100; // todo
-		var creaturesSoFar = [];
-		for (var c = 0; c < creaturesCount; c++)
-		{
-			var creatureAsBytes = reader.readBytes(creatureSizeInBytes);
-			var creature = Creature.fromBytes(creatureAsBytes);
-			creaturesSoFar.push(creature);
-		}
 
 		var pictures = [];
 		var picturesCount = 128; // ?
@@ -509,12 +483,83 @@ class Adventure
 			pictures,
 			worldMap,
 			regions,
-			thingsSoFar,
-			creaturesSoFar,
-			messagesSoFar
+			things,
+			creatures,
+			messages
 		);
 
 		return adventure;
+	}
+
+	static fromBytes_Creatures(reader, converter, textDecoder)
+	{
+		var creatureNamesOffsetInBytes = 0x1B280;
+		var creatureNameSizeInBytes = 10;
+		var creaturesCount = 128; // ?
+
+		var creatureNamesSoFar = [];
+		for (var t = 0; t < creaturesCount; t++)
+		{
+			var creatureNameEncodedAsBytes =
+				reader.readBytes(creatureNameSizeInBytes);
+			var creatureName =
+				textDecoder.bytesDecodeToString(creatureNameEncodedAsBytes);
+			creatureNamesSoFar.push(creatureName);
+		}
+
+		var creaturesDataOffsetInBytes = 0x19400;
+		reader.byteIndexSet(creaturesDataOffsetInBytes);
+		var creaturesSoFar = [];
+		var creatureSizeInBytes = 37; // 0x25.
+		for (var c = 0; c < creaturesCount; c++)
+		{
+			var creatureId = c + 1;
+			var creatureName = creatureNamesSoFar[t];
+			var creatureAsBytes = reader.readBytes(creatureSizeInBytes);
+			var creature = Creature.fromIdNameAndBytes
+			(
+				creatureId, creatureName, creatureAsBytes
+			);
+			creaturesSoFar.push(creature);
+		}
+
+		return creaturesSoFar;
+	}
+
+
+	static fromBytes_Things(reader, converter, textDecoder)
+	{
+		var thingNamesOffsetInBytes = 0x1B800;
+		var thingNameSizeInBytes = 10;
+		var thingsCount = 100; // ?
+
+		var thingNamesSoFar = [];
+		for (var t = 0; t < thingsCount; t++)
+		{
+			var thingNameEncodedAsBytes =
+				reader.readBytes(thingNameSizeInBytes);
+			var thingName =
+				textDecoder.bytesDecodeToString(thingNameEncodedAsBytes);
+			thingNamesSoFar.push(thingName);
+		}
+
+		var thingsOffsetInBytes = 0x1C000; // ?
+		reader.byteIndexSet(thingsOffsetInBytes);
+		var thingsSoFar = [];
+		var thingSizeInBytes = 4096; // ?
+		for (var t = 0; t < thingsCount; t++)
+		{
+			var thingId = t + 1;
+			var thingName = thingNamesSoFar[t];
+			var thingAsBytes = reader.readBytes(thingSizeInBytes);
+			var thing = Thing.fromIdNameAndBytes
+			(
+				thingId, thingName, thingAsBytes
+			);
+			thingsSoFar.push(thing);
+		}
+
+		return thingsSoFar;
 	}
 
 	toBytes()
@@ -595,6 +640,14 @@ class Creature
 		this.strategyId = strategyId;
 		this.mimicsOpponent = mimicsOpponent;
 		this.equipment = equipment;
+	}
+
+	static fromIdNameAndBytes(id, name, bytes)
+	{
+		var creature = Creature.fromBytes(bytes);
+		creature.id = id;
+		creature.name = name;
+		return creature;
 	}
 
 	picture(adventure)
@@ -710,15 +763,37 @@ class CreatureAttributes
 		var converter = new ByteConverter();
 
 		var constitution = bitStream.readIntegerFromBits(6);
-		var strength = bitStream.readIntegerFromBits(5);
 		var wisdom = bitStream.readIntegerFromBits(5);
+		var strength = bitStream.readIntegerFromBits(5);
+
+		var dexterity = "todo";
+		var size = "todo";
+
+		var lifeForce = "todo";
+		var power = "todo";
+		var speed = "todo";
+
+		var missileSkill = "todo";
+		var meleeSkill = "todo";
+		var armorSkill = "todo";
+		var dodgeSkill = "todo";
+		var parrySkill = "todo";
 
 		var attributes = new CreatureAttributes
 		(
 			constitution,
 			strength,
-			wisdom
-			// todo
+			wisdom,
+			dexterity,
+			size,
+			lifeForce,
+			power,
+			speed,
+			missileSkill,
+			meleeSkill,
+			armorSkill,
+			dodgeSkill,
+			parrySkill
 		);
 
 		return attributes;

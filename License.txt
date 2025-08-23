@@ -1,3 +1,18 @@
+The .hrd files for _Rivers of Light_ and _Land of Adventuria_
+in the Demo directory were included with the original version
+of _Adventure Construction Set_, and may be licensed under
+unknown copyright holders.  They are included here for purposes
+of demonstration only.
+
+The code in the file TextDecoder.js (only) is adapted from another
+ACS fan project, named "ACSViewer", which is licensed under some version
+of the GNU Public License (GPL).  See TextDecoder.js for details.
+
+The remaining, original code in this repository is provided
+under the MIT License.
+
+____
+
 MIT License
 
 Copyright (c) 2025 This Could Be Better
