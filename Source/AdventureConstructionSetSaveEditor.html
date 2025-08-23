@@ -494,17 +494,21 @@ class Adventure
 	static fromBytes_Creatures(reader, converter, textDecoder)
 	{
 		var creatureNamesOffsetInBytes = 0x1B280;
+		reader.byteIndexSet(creatureNamesOffsetInBytes);
+
 		var creatureNameSizeInBytes = 10;
 		var creaturesCount = 128; // ?
 
-		var creatureNamesSoFar = [];
-		for (var t = 0; t < creaturesCount; t++)
+		var creatureNames = [];
+		for (var c = 0; c < creaturesCount; c++)
 		{
 			var creatureNameEncodedAsBytes =
 				reader.readBytes(creatureNameSizeInBytes);
 			var creatureName =
-				textDecoder.bytesDecodeToString(creatureNameEncodedAsBytes);
-			creatureNamesSoFar.push(creatureName);
+				textDecoder
+					.bytesDecodeToString(creatureNameEncodedAsBytes)
+					.trim();
+			creatureNames.push(creatureName);
 		}
 
 		var creaturesDataOffsetInBytes = 0x19400;
@@ -514,7 +518,7 @@ class Adventure
 		for (var c = 0; c < creaturesCount; c++)
 		{
 			var creatureId = c + 1;
-			var creatureName = creatureNamesSoFar[t];
+			var creatureName = creatureNames[c];
 			var creatureAsBytes = reader.readBytes(creatureSizeInBytes);
 			var creature = Creature.fromIdNameAndBytes
 			(
@@ -670,10 +674,22 @@ class Creature
 		var name = "todo";
 		var typeId = -1; // todo
 		var pictureId = 1; // todo
-		var attributesAsBytes = reader.readBytes(10);
+		var attributesAsBytes = reader.readBytes(37);
 		var attributes =
 			CreatureAttributes.fromBytes(attributesAsBytes);
-		var other = reader.readBytes(0); // todo
+		var strategyId = "todo";
+		var mimicsOpponent = false;
+		var wealth = "todo";
+		var itemsHeld = []; // todo
+		var itemReadiedArmor = null; // todo
+		var itemReadiedWeapon = null; // todo
+		var equipment = new CreatureEquipment
+		(
+			wealth,
+			itemsHeld,
+			itemReadiedArmor,
+			itemReadiedWeapon
+		); // todo
 
 		var creature = new Creature
 		(
@@ -682,7 +698,9 @@ class Creature
 			typeId,
 			pictureId,
 			attributes,
-			other
+			strategyId,
+			mimicsOpponent,
+			equipment
 		);
 
 		return creature;
@@ -722,9 +740,9 @@ class CreatureAttributes
 	constructor
 	(
 		constitution,
-		wisdom,
 		strength,
 		dexterity,
+		wisdom,
 		size,
 
 		lifeForce,
@@ -739,9 +757,9 @@ class CreatureAttributes
 	)
 	{
 		this.constitution = constitution;
-		this.wisdom = wisdom;
 		this.strength = strength;
 		this.dexterity = dexterity;
+		this.wisdom = wisdom;
 		this.size = size;
 
 		this.lifeForce = lifeForce;
@@ -763,28 +781,38 @@ class CreatureAttributes
 		var converter = new ByteConverter();
 
 		var constitution = bitStream.readIntegerFromBits(6);
-		var wisdom = bitStream.readIntegerFromBits(5);
-		var strength = bitStream.readIntegerFromBits(5);
-
-		var dexterity = "todo";
-		var size = "todo";
-
-		var lifeForce = "todo";
-		var power = "todo";
-		var speed = "todo";
-
-		var missileSkill = "todo";
-		var meleeSkill = "todo";
-		var armorSkill = "todo";
-		var dodgeSkill = "todo";
-		var parrySkill = "todo";
+		var magicDamageResistance =
+			bitStream.readIntegerFromBits(2);
+		var strength = bitStream.readByte();
+		var dexterity = bitStream.readByte();
+		var lifeForce = bitStream.readByte();
+		var speed = bitStream.readIntegerFromBits(4);
+		var strategyAllegiance = bitStream.readIntegerFromBits(2);
+		var strategyAggressionLevelId = bitStream.readBit();
+		var strategyBraveryLevelId = bitStream.readBit();
+		var power = bitStream.readByte();
+		var dodgeSkill = bitStream.readByte();
+		var parrySkill = bitStream.readByte();
+		var armorSkill = bitStream.readByte(); // 0x19408
+		var meleeSkill = bitStream.readIntegerFromBits(7);
+		var mimicsOpponent = bitStream.readIntegerFromBits(1);
+		var missileSkill = bitStream.readByte(); // 0x1940A
+		var unknown2 = bitStream.readBytes(4); // B - E
+		var size = bitStream.readByte(); // 0x1940F
+		var unknown3 = bitStream.readByte();
+		var wisdom = bitStream.readByte(); // 0x19411
+		var wealthAsBytes = bitStream.readBytes(2);
+		var wealth = converter.bytesToIntegerUnsignedBE(wealthAsBytes); // 0x19412-13
+		var itemReadiedIdWeapon = bitStream.readByte(); // 0x19414
+		var itemReadiedIdArmor = bitStream.readByte(); // 0x19415
+		var pictureId = bitStream.readByte();
 
 		var attributes = new CreatureAttributes
 		(
 			constitution,
 			strength,
-			wisdom,
 			dexterity,
+			wisdom,
 			size,
 			lifeForce,
 			power,

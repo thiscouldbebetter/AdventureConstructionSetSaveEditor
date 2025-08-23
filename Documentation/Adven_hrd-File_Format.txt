@@ -670,6 +670,180 @@ So they're 0x25 = 37 bytes apart.
 That's a strange number.
 They must be really packed in there.
 
+(Backing up a bit,
+I changed his creature class
+from Persons-Friends to Persons-Enemies:)
+
+	0001B200: 10 11
+
+All right, now it's reading all the creature names,
+and evidently the constitutions.
+I maxed out Achilles' constitution (from 27 to 63):
+
+	00019400: 9B BF
+	0x9B = 0b1001_1011 = 9 * 16 + 11 = 151
+	0xBF = 0b1011_1111 = 11 * 16 + 15 = 176 + 15 = 191
+
+Constitution seems to share a byte
+with magic damage resistance?
+From "only magic weapons do damage"
+to "non-magic weapons do half damage":
+
+	00019400: 9B 5B
+
+	0x9B = 0b1001_1011
+	0x5B = 0b0101_1011
+
+to "MAGIC weapons do half damage":
+
+	00019400: 9B DB
+
+	0xDB = 0b1101_1011
+
+to "no magic defense":
+
+	00019400: 9B 1B
+
+	0x1B = 0b0001_1011
+
+Next strength from 16? to 31:
+(16 seems a bit low for Achilles...)
+
+	00019401: 10 1F
+
+Next dexterity from 15 to 31:
+
+	00019402: 0F 1F
+
+Here's life force, from 27 to 63:
+
+	19403: 1B 3F
+
+Speed, from 7 to 15:
+
+	00019404: F7 FF
+
+Speed seems to share a byte
+with Strategy.
+Changed "Strategy" from "Brave" to "Cautious":
+
+	00019404: F7 77
+
+"Aggressive" to "peaceful":
+
+	00019404: F7 B7
+
+"Friend" to "Thief":
+
+	00019404: F7 C7
+	0xF7 = 0b1111_0111
+	0xC7 = 0b1010_0111
+
+...to "Neutral":
+
+	00019404: F7 D7
+
+	0xD7 = 0b1101_0111
+
+...to "Enemy":
+
+	00019404: F7 E7
+	0xE7 = 0b1110_0111
+
+
+And power, from 13 to 127:
+
+	00019405: 0D 7F
+
+Dodge skill, from 34 to 127:
+
+	00019406: 22 7F
+
+Parry, from 38 to 127:
+
+	00019407: 26 7F
+
+Armor skill, from 20 to 127:
+
+	00019408: 14 7F
+
+Now his melee skill,
+from 67 to 127:
+
+	00019409: 43 7F
+
+Melee skill seems to share a byte
+with mimicry.
+"Will not mimic..." to "Will Mimic..."
+
+	00019409: 43 C3
+
+	0100 -> 1100
+	So, the top bit?
+
+I guess these aren't bitfields?
+They just leave some bits unused?
+That'd be a relief, if true.
+Anyway, here's missile skill,
+from 44 to 127:
+
+	0001940A: 2C 7F
+
+Then bytes -B from -E don't seem to change,
+then
+
+Size, from 11 to 31:
+
+	0001940F: 0B 1F
+
+Then we skip -10, then
+
+Then wisdom (fom 13 to 31),
+and this is the result:
+
+	00019411: 0D 1F
+
+Then his wealth,
+from 500 to 25,000:
+
+	00019412: F4 A8
+	00019413: 01 61
+
+	0x01F4 = 256 + 15 * 16 + 4
+		   = 256 + 240 + 4
+		   = 256 + 244
+		   = 400 + 90 + 10
+		   = 500
+
+That one seems a bit tricky,
+so here's it set to 0 instead:
+
+	00019412: F4 00
+	00019413: 01 00
+
+Readied Weapon
+from "Spear" to "None":
+
+	00019414: 2D 00
+
+...to "Dagger":
+
+	00019414: 2D 02
+
+...to "Hand":
+
+	00019414: 2D 0C
+
+These do seem to be the IDs of the items.
+
+Changed "Readied Armor"
+from "Scroll" to "Leather Armor":
+
+	00019415: 21 34
+
+Then I moved to the next picture:
+
+	00019416: 47 48
 
 
 Regions
