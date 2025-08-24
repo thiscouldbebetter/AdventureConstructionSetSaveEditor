@@ -871,7 +871,130 @@ Creature Definitions
 --------------------
 
 I changed the blank fantasy adven.hrd
-by prefixing the name of the first two creatures,
+to change the names of the first two creature classes
+"Persons-Friends" and "Persons-Enemies"
+to "Persons-Friend1" and "Persons-Enemie1".
+Here's the diff:
+
+	19300: 10 50 P?
+	19301: 05 45 E?
+	19302: 12 52 R?
+	19303: 13 53 S?
+	19304: 0F 4F O?
+	19305: 0E 4E N?
+	19306: 13 53 S?
+
+	19308: 06 46 F?
+	19309: 12 52 R?
+	1930A: 09 49 I?
+	1930B: 05 45 E?
+	1930C: 0E 4E N?
+	1930D: 04 44 D?
+	1930E: 13 31 1?
+
+	1930F: 10 50 P
+	19310: 05 45 E
+	19311: 12 52 R
+	19312: 13 53 S
+	19313: 0F 4F O
+	19314: 0E 4E N
+	19315: 13 53 S
+
+	19317: 05 45 E
+	19318: 0E 4E N
+	19319: 05 45 E
+	1931A: 0D 4D M
+	1931B: 09 49 I
+	1931C: 05 45 E
+	1931D: 13 31 1
+
+There's no discontinuity,
+so I guess they're jammed right up against each other,
+with 15 chars each.
+The dash/hyphen is not in the diff.
+Does that mean that it's just zero?
+Or is the new byte just coincidentally the same
+as the old one?
+
+Wild that so much changed.
+What weird mapping is at work here?
+I guess there are two ways to encode a char,
+one where P is 0x10,
+another where P is 0x50.
+so, one is ASCII,
+and the other is just rooted at 0.
+How very weird this all is.
+
+Okay, what if I replaced the FIRST chars with 1's?
+
+	19300: 10 31
+	19301: 05 45
+	19302: 12 52
+	19303: 13 53
+	19304: 0F 4F
+	19305: 0E 4E
+	19306: 13 53
+	19308: 06 46
+	19309: 12 52
+	1930A: 09 49
+	1930B: 05 45
+	1930C: 0E 4E
+	1930D: 04 44
+	1930E: 13 53
+
+	1930F: 10 31
+	19310: 05 45
+	19311: 12 52
+	19312: 13 53
+	19313: 0F 4F
+	19314: 0E 4E
+	19315: 13 53
+	19317: 05 45
+	19318: 0E 4E
+	19319: 05 45
+	1931A: 0D 4D
+	1931B: 09 49
+	1931C: 05 45
+	1931D: 13 53
+
+Okay, what if i change the first chars to 2's?
+
+	19300: 10 32
+	19301: 05 45
+	19302: 12 52
+	19303: 13 53
+	19304: 0F 4F
+	19305: 0E 4E
+	19306: 13 53
+	19308: 06 46
+	19309: 12 52
+	1930A: 09 49
+	1930B: 05 45
+	1930C: 0E 4E
+	1930D: 04 44
+	1930E: 13 53
+	1930F: 10 32
+	19310: 05 45
+	19311: 12 52
+	19312: 13 53
+	19313: 0F 4F
+	19314: 0E 4E
+	19315: 13 53
+	19317: 05 45
+	19318: 0E 4E
+	19319: 05 45
+	1931A: 0D 4D
+	1931B: 09 49
+	1931C: 05 45
+	1931D: 13 53
+
+I have to assume it moved the name storage
+somewhere else entirely.
+I guess the defaults are stored separately?
+
+----
+
+Moving on, I then prefixed the names of the first two creatures,
 namely, Achilles and Ali Baba,
 with 1 and 2 respectively.
 Then, the file compare shows these differences
@@ -911,10 +1034,15 @@ That's a strange number.
 They must be really packed in there.
 
 (Backing up a bit,
-I changed his creature class
-from Persons-Friends to Persons-Enemies:)
+I changed the creature class
+of 1-Achilles and 2-Ali Baba
+from Persons-Friends to Persons-Enemies
+and here's the diff:
 
 	0001B200: 10 11
+	0001B201: 10 11
+
+I guess the creature class is the lowest-order three bits?
 
 All right, now it's reading all the creature names,
 and evidently the constitutions.

@@ -48,7 +48,7 @@
 			value="1"
 		></input>
 		<div id="divObjectToDraw">
-			[nothing drawn yet]
+			[nothing to draw yet]
 		</div>
 	</div>
 
@@ -144,7 +144,7 @@ class UiEventHandler
 					var creatureAsCanvas =
 						creature.toCanvas(adventure);
 					divObjectToDraw.appendChild(creatureAsCanvas);
-					var creatureAsJson = creature.toJson();
+					var creatureAsJson = creature.toJson(adventure);
 					textareaJson.value = creatureAsJson;
 				}
 			}
@@ -299,6 +299,12 @@ class Adventure
 		return this.creatures[creatureIndex];
 	}
 
+	creatureTypeById(creatureTypeId)
+	{
+		var creatureTypeIndex = creatureTypeId; // - 1?
+		return this.creatureTypes[creatureTypeIndex];
+	}
+
 	pictureById(pictureId)
 	{
 		return this.pictures[pictureId];
@@ -330,7 +336,8 @@ class Adventure
 		var things =
 			this.fromBytes_Things(reader, converter, textDecoder);
 
-		var creatureTypes = []; // todo
+		var creatureTypes =
+			this.fromBytes_CreatureTypes(reader, converter, TextDecoder);
 
 		var creatures =
 			this.fromBytes_Creatures(reader, converter, textDecoder);
@@ -395,11 +402,22 @@ class Adventure
 
 	static fromBytes_Creatures(reader, converter, textDecoder)
 	{
+		var creaturesCount = 128; // ?
+
+		var creatureTypesOffsetInBytes = 0x1B200;
+		var creatureTypeIdLengthInBytes = 1; // Really only the last 3 bits of that, though?
+		var creatureTypeIds = [];
+		for (var c = 0; c < creaturesCount; c++)
+		{
+			var unknown = reader.readBits(5); // ?
+			var creatureTypeId = reader.readIntegerFromBits(3);
+			creatureTypeIds.push(creatureTypeId);
+		}
+
 		var creatureNamesOffsetInBytes = 0x1B280;
 		reader.byteIndexSet(creatureNamesOffsetInBytes);
 
 		var creatureNameSizeInBytes = 10;
-		var creaturesCount = 128; // ?
 
 		var creatureNames = [];
 		for (var c = 0; c < creaturesCount; c++)
@@ -421,15 +439,49 @@ class Adventure
 		{
 			var creatureId = c + 1;
 			var creatureName = creatureNames[c];
+			var creatureTypeId = creatureTypeIds[c];
 			var creatureAsBytes = reader.readBytes(creatureSizeInBytes);
-			var creature = Creature.fromIdNameAndBytes
+			var creature = Creature.fromIdNameTypeIdAndBytes
 			(
-				creatureId, creatureName, creatureAsBytes
+				creatureId, creatureName, creatureTypeId, creatureAsBytes
 			);
 			creaturesSoFar.push(creature);
 		}
 
 		return creaturesSoFar;
+	}
+
+	static fromBytes_CreatureTypes(reader, converter)
+	{
+		var creatureTypeNamesOffsetInBytes = 0x19300;
+		reader.byteIndexSet(creatureTypeNamesOffsetInBytes);
+		var creatureTypeNameSizeInBytes = 15;
+		var creatureTypeNamesCount = 8
+		var creatureTypes = [];
+		for (var i = 0; i < creatureTypeNamesCount; i++)
+		{
+			var creatureTypeNameAsBytes =
+				reader.readBytes(creatureTypeNameSizeInBytes);
+
+			// This is weird.  A different encoding is used for default names.
+			var creatureTypeNameIsDefault =
+				creatureTypeNameAsBytes.some(x => x <= 0x20);
+			if (creatureTypeNameIsDefault)
+			{
+				creatureTypeNameAsBytes =
+					creatureTypeNameAsBytes.map(x => x >= 0x20 ? x : x + 0x40);
+			}
+			var creatureTypeName =
+				converter
+					.bytesToString(creatureTypeNameAsBytes)
+					.trim();
+			var creatureTypeId = i; // Add to it?
+			var creatureType =
+				new CreatureType(creatureTypeId, creatureTypeName);
+			creatureTypes.push(creatureType);
+		}
+
+		return creatureTypes;
 	}
 
 	static fromBytes_Messages(reader, converter)
@@ -698,7 +750,7 @@ class Creature
 	(
 		id,
 		name,
-		typeId,
+		creatureTypeId,
 		pictureId,
 		attributes,
 		strategy,
@@ -708,7 +760,7 @@ class Creature
 	{
 		this.id = id;
 		this.name = name;
-		this.typeId = typeId;
+		this.creatureTypeId = creatureTypeId;
 		this.pictureId = pictureId;
 		this.attributes = attributes;
 		this.strategy = strategy;
@@ -716,12 +768,18 @@ class Creature
 		this.equipment = equipment;
 	}
 
-	static fromIdNameAndBytes(id, name, bytes)
+	static fromIdNameTypeIdAndBytes(id, name, creatureTypeId, bytes)
 	{
 		var creature = Creature.fromBytes(bytes);
 		creature.id = id;
 		creature.name = name;
+		creature.creatureTypeId = creatureTypeId;
 		return creature;
+	}
+
+	creatureType(adventure)
+	{
+		return adventure.creatureTypeById(this.creatureTypeId);
 	}
 
 	// Bytes.
@@ -762,7 +820,7 @@ class Creature
 		var dodgeSkill = bitStream.readByte();
 		var parrySkill = bitStream.readByte();
 		var armorSkill = bitStream.readByte(); // 0x19408
-		var mimicsOpponent = bitStream.readIntegerFromBits(1);
+		var mimicsOpponent = bitStream.readIntegerFromBits(1) > 0;
 		var meleeSkill = bitStream.readIntegerFromBits(7);
 		var missileSkill = bitStream.readByte(); // 0x1940A
 		var unknown2 = bitStream.readBytes(4); // B - E
@@ -836,25 +894,29 @@ class Creature
 
 	// JSON.
 
-	static manyToJson(creatures)
-	{
-		var creaturesAsJson =
-			creatures.map(x => x.toJson() );
-		var creaturesAsJsonJoined =
-			creaturesAsJson.join(",\n");
-		var returnValue =
-			"{\n" + creaturesAsJsonJoined + "\n}";
-		return returnValue;
-	}
-
 	static fromJson(creatureAsJson)
 	{
 		throw new Error("todo");
 	}
 
-	toJson()
+	toJson(adventure)
 	{
-		return JSON.stringify(this, null, 4);
+		var creatureTypeName = this.creatureType(adventure).name;
+		var strategyAsString = this.strategy.toString();
+
+		var thisAsObjectToSerialize =
+		{
+			id: this.id,
+			name: this.name,
+			type: creatureTypeName,
+			pictureId: this.pictureId,
+			attributes: this.attributes,
+			strategy: strategyAsString,
+			mimicsOpponent: this.mimicsOpponent,
+			equipment: this.equipment
+		};
+
+		return JSON.stringify(thisAsObjectToSerialize, null, 4);
 	}
 }
 
@@ -924,8 +986,32 @@ class CreatureStrategy
 	)
 	{
 		this.braveryLevelId = braveryLevelId;
-		this.agressionLevelId = aggressionLevelId;
+		this.aggressionLevelId = aggressionLevelId;
 		this.allegianceId = allegianceId;
+	}
+
+	aggressionLevel()
+	{
+		return CreatureStrategyAggressionLevel.byId(this.aggressionLevelId);
+	}
+
+	allegiance()
+	{
+		return CreatureStrategyAllegiance.byId(this.allegianceId);
+	}
+
+	braveryLevel()
+	{
+		return CreatureStrategyBraveryLevel.byId(this.braveryLevelId);
+	}
+
+	toString()
+	{
+		var returnValue =
+			this.braveryLevel().name
+			+ " " + this.aggressionLevel().name
+			+ " " + this.allegiance().name;
+		return returnValue;
 	}
 }
 
@@ -959,7 +1045,7 @@ class CreatureStrategyAggressionLevel_Instances
 	{
 		var csal = (id, n) => new CreatureStrategyAggressionLevel(id, n);
 
-		this.Agressive = csal(1, "Aggressive");
+		this.Aggressive = csal(1, "Aggressive");
 		this.Peaceful = csal(2, "Peaceful");
 
 		this._All =
@@ -1005,17 +1091,17 @@ class CreatureStrategyAllegiance_Instances
 	{
 		var csa = (id, n) => new CreatureStrategyAllegiance(id, n);
 
-		this.Enemy = csa("Aggressive");
-		this.Friend = csa("Peaceful");
-		this.Neutral = csa("Neutral");
-		this.Thief = csa("Thief");
+		this.Thief 		= csa(0, "Thief");
+		this.Neutral 	= csa(1, "Neutral");
+		this.Enemy 		= csa(2, "Enemy"); // ?
+		this.Friend 	= csa(3, "Friend");
 
 		this._All =
 		[
-			this.Enemy,
-			this.Friend,
+			this.Thief,
 			this.Neutral,
-			this.Thief
+			this.Enemy,
+			this.Friend
 		];
 	}
 
