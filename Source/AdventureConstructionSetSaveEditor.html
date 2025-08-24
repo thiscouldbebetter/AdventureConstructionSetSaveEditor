@@ -30,11 +30,14 @@
 		<select
 			id="selectObjectToDrawType"
 		>
+			<option>-</option>
 			<option>Creature</option>
+			<option>Creature Types</option>
 			<option>Picture</option>
 			<option>Region</option>
 			<option>Room</option>
 			<option>Thing</option>
+			<option>Thing Types</option>
 			<option>World Map</option>
 		</select>
 		<label>with ID:</label>
@@ -122,7 +125,7 @@ class UiEventHandler
 			var objectToDrawId =
 				parseInt(inputObjectToDrawId.value);
 
-			if (objectToDrawTypeName == "Creature")
+			if (objectToDrawTypeName == Creature.name)
 			{
 				if (objectToDrawId == 0)
 				{
@@ -145,7 +148,14 @@ class UiEventHandler
 					textareaJson.value = creatureAsJson;
 				}
 			}
-			else if (objectToDrawTypeName == "Picture")
+			else if (objectToDrawTypeName == "Creature Types")
+			{
+				var creatureTypes = adventure.creatureTypes;
+				var creatureTypesAsJson =
+					JSON.stringify(creatureTypes, null, 4);
+				textareaJson.value = creatureTypesAsJson;
+			}
+			else if (objectToDrawTypeName == Picture.name)
 			{
 				var pictures = adventure.pictures;
 
@@ -169,7 +179,7 @@ class UiEventHandler
 					textareaJson.value = pictureAsJson;
 				}
 			}
-			else if (objectToDrawTypeName == "Region")
+			else if (objectToDrawTypeName == Region.name)
 			{
 				var region = adventure.regionsById(objectToDrawId);
 				var regionAsCanvas = region.toCanvas();
@@ -177,13 +187,38 @@ class UiEventHandler
 				var regionAsJson = region.toJson();
 				textareaJson.value = regionAsJson;
 			}
-			else if (objectToDrawTypeName == "Room")
+			else if (objectToDrawTypeName == Room.name)
 			{
 				alert("todo");
 			}
-			else if (objectToDrawTypeName == "Thing")
+			else if (objectToDrawTypeName == Thing.name)
 			{
-				alert("todo");
+				if (objectToDrawId == 0)
+				{
+					var things = adventure.things;
+					var thingsAsCanvases =
+						things.map(x => x.toCanvas(adventure) );
+					divObjectToDraw.appendChild(...thingsAsCanvases);
+					var thingsAsJson =
+						Thing.manyToJson(things);
+					textareaJson.value = thingsAsJson;
+				}
+				else
+				{
+					var thing =
+						adventure.thingById(objectToDrawId);
+					var thingAsCanvas =
+						thing.toCanvas(adventure);
+					divObjectToDraw.appendChild(thingAsCanvas);
+					var thingAsJson = thing.toJson();
+					textareaJson.value = thingAsJson;
+				}
+			}
+			else if (objectToDrawTypeName == "Thing Types")
+			{
+				var thingTypes = ThingType.Instances()._All;
+				var thingTypesAsJson = JSON.stringify(thingTypes, null, 4);
+				textareaJson.value = thingTypesAsJson;
 			}
 			else if (objectToDrawTypeName == "World Map")
 			{
@@ -194,7 +229,7 @@ class UiEventHandler
 			}
 			else
 			{
-				throw new Error("Unrecognized!");
+				alert("Choose a valid type.");
 			}
 		}
 	}
@@ -241,6 +276,7 @@ class Adventure
 		worldMap,
 		regions,
 		things,
+		creatureTypes,
 		creatures,
 		messages
 	)
@@ -252,6 +288,7 @@ class Adventure
 		this.worldMap = worldMap;
 		this.regions = regions;
 		this.things = things;
+		this.creatureTypes = creatureTypes;
 		this.creatures = creatures;
 		this.messages = messages;
 	}
@@ -264,18 +301,19 @@ class Adventure
 
 	pictureById(pictureId)
 	{
-		return this.pictureByIndex(pictureId - 1);
-	}
-
-	pictureByIndex(pictureIndex)
-	{
-		return this.pictures[pictureIndex];
+		return this.pictures[pictureId];
 	}
 
 	regionById(regionId)
 	{
 		var regionIndex = regionId - 1;
 		return this.regions[regionIndex];
+	}
+
+	thingById(thingId)
+	{
+		var thingIndex = thingId - 1;
+		return this.things[thingIndex];
 	}
 
 	// Bytes.
@@ -287,21 +325,12 @@ class Adventure
 
 		var reader = BitStream.fromBytes(bytes);
 
-		var messagesOffsetInBytes = 0x16C00;
-		var messageSizeInBytes = 0x100;
-		var messages = [];
-		var messagesCount = 255; // todo
-		reader.byteIndexSet(messagesOffsetInBytes);
-		for (var m = 0; m < messagesCount; m++)
-		{
-			var messageAsBytes =
-				reader.readBytes(messagesOffsetInBytes);
-			var message = converter.bytesToString(messageAsBytes);
-			messages.push(message);
-		}
+		var messages = this.fromBytes_Messages(reader, converter);
 
 		var things =
 			this.fromBytes_Things(reader, converter, textDecoder);
+
+		var creatureTypes = []; // todo
 
 		var creatures =
 			this.fromBytes_Creatures(reader, converter, textDecoder);
@@ -345,6 +374,84 @@ class Adventure
 		reader.byteIndexSet(0x1C56e);
 		var musicalThemeId = reader.readByte();
 
+		var pictures = this.fromBytes_Pictures(reader);
+
+		var adventure = new Adventure
+		(
+			adventureName,
+			authorName,
+			musicalThemeId,
+			pictures,
+			worldMap,
+			regions,
+			things,
+			creatureTypes,
+			creatures,
+			messages
+		);
+
+		return adventure;
+	}
+
+	static fromBytes_Creatures(reader, converter, textDecoder)
+	{
+		var creatureNamesOffsetInBytes = 0x1B280;
+		reader.byteIndexSet(creatureNamesOffsetInBytes);
+
+		var creatureNameSizeInBytes = 10;
+		var creaturesCount = 128; // ?
+
+		var creatureNames = [];
+		for (var c = 0; c < creaturesCount; c++)
+		{
+			var creatureNameEncodedAsBytes =
+				reader.readBytes(creatureNameSizeInBytes);
+			var creatureName =
+				textDecoder
+					.bytesDecodeToString(creatureNameEncodedAsBytes)
+					.trim();
+			creatureNames.push(creatureName);
+		}
+
+		var creaturesDataOffsetInBytes = 0x19400;
+		reader.byteIndexSet(creaturesDataOffsetInBytes);
+		var creaturesSoFar = [];
+		var creatureSizeInBytes = 37; // 0x25.
+		for (var c = 0; c < creaturesCount; c++)
+		{
+			var creatureId = c + 1;
+			var creatureName = creatureNames[c];
+			var creatureAsBytes = reader.readBytes(creatureSizeInBytes);
+			var creature = Creature.fromIdNameAndBytes
+			(
+				creatureId, creatureName, creatureAsBytes
+			);
+			creaturesSoFar.push(creature);
+		}
+
+		return creaturesSoFar;
+	}
+
+	static fromBytes_Messages(reader, converter)
+	{
+		var messagesOffsetInBytes = 0x16C00;
+		var messageSizeInBytes = 0x100;
+		var messages = [];
+		var messagesCount = 255; // todo
+		reader.byteIndexSet(messagesOffsetInBytes);
+		for (var m = 0; m < messagesCount; m++)
+		{
+			var messageAsBytes =
+				reader.readBytes(messagesOffsetInBytes);
+			var message = converter.bytesToString(messageAsBytes);
+			messages.push(message);
+		}
+
+		return messages;
+	}
+
+	static fromBytes_Pictures(reader)
+	{
 		var pictures = [];
 		var picturesCount = 128; // ?
 		for (var p = 0; p < picturesCount; p++)
@@ -475,77 +582,39 @@ class Adventure
 			}
 		}
 
-		var adventure = new Adventure
-		(
-			adventureName,
-			authorName,
-			musicalThemeId,
-			pictures,
-			worldMap,
-			regions,
-			things,
-			creatures,
-			messages
-		);
-
-		return adventure;
+		return pictures;
 	}
-
-	static fromBytes_Creatures(reader, converter, textDecoder)
-	{
-		var creatureNamesOffsetInBytes = 0x1B280;
-		reader.byteIndexSet(creatureNamesOffsetInBytes);
-
-		var creatureNameSizeInBytes = 10;
-		var creaturesCount = 128; // ?
-
-		var creatureNames = [];
-		for (var c = 0; c < creaturesCount; c++)
-		{
-			var creatureNameEncodedAsBytes =
-				reader.readBytes(creatureNameSizeInBytes);
-			var creatureName =
-				textDecoder
-					.bytesDecodeToString(creatureNameEncodedAsBytes)
-					.trim();
-			creatureNames.push(creatureName);
-		}
-
-		var creaturesDataOffsetInBytes = 0x19400;
-		reader.byteIndexSet(creaturesDataOffsetInBytes);
-		var creaturesSoFar = [];
-		var creatureSizeInBytes = 37; // 0x25.
-		for (var c = 0; c < creaturesCount; c++)
-		{
-			var creatureId = c + 1;
-			var creatureName = creatureNames[c];
-			var creatureAsBytes = reader.readBytes(creatureSizeInBytes);
-			var creature = Creature.fromIdNameAndBytes
-			(
-				creatureId, creatureName, creatureAsBytes
-			);
-			creaturesSoFar.push(creature);
-		}
-
-		return creaturesSoFar;
-	}
-
 
 	static fromBytes_Things(reader, converter, textDecoder)
 	{
 		var thingNamesOffsetInBytes = 0x1B800;
-		var thingNameSizeInBytes = 10;
-		var thingsCount = 100; // ?
+		reader.byteIndexSet(thingNamesOffsetInBytes);
 
-		var thingNamesSoFar = [];
+		var thingNameSizeInBytes = 10;
+		var thingsCount = 128; // ?
+
+		var thingNames = [];
 		for (var t = 0; t < thingsCount; t++)
 		{
 			var thingNameEncodedAsBytes =
 				reader.readBytes(thingNameSizeInBytes);
 			var thingName =
-				textDecoder.bytesDecodeToString(thingNameEncodedAsBytes);
-			thingNamesSoFar.push(thingName);
+				textDecoder
+					.bytesDecodeToString(thingNameEncodedAsBytes)
+					.trim();
+			thingNames.push(thingName);
 		}
+
+		var thingTypeIds = [];
+		for (var t = 0; t < thingsCount; t++)
+		{
+			var unknown = reader.readIntegerFromBits(4);
+			var thingTypeId = reader.readIntegerFromBits(4);
+			var unknown2 = reader.readBytes(3);
+			thingTypeIds.push(thingTypeId);
+		}
+		// This leaves us at 0x1BF00,
+		// which is 256 bytes unaccounted for.
 
 		var thingsOffsetInBytes = 0x1C000; // ?
 		reader.byteIndexSet(thingsOffsetInBytes);
@@ -554,11 +623,12 @@ class Adventure
 		for (var t = 0; t < thingsCount; t++)
 		{
 			var thingId = t + 1;
-			var thingName = thingNamesSoFar[t];
+			var thingName = thingNames[t];
+			var thingTypeId = thingTypeIds[t];
 			var thingAsBytes = reader.readBytes(thingSizeInBytes);
-			var thing = Thing.fromIdNameAndBytes
+			var thing = Thing.fromIdNameTypeIdAndBytes
 			(
-				thingId, thingName, thingAsBytes
+				thingId, thingName, thingTypeId, thingAsBytes
 			);
 			thingsSoFar.push(thing);
 		}
@@ -631,7 +701,7 @@ class Creature
 		typeId,
 		pictureId,
 		attributes,
-		strategyId,
+		strategy,
 		mimicsOpponent,
 		equipment
 	)
@@ -641,7 +711,7 @@ class Creature
 		this.typeId = typeId;
 		this.pictureId = pictureId;
 		this.attributes = attributes;
-		this.strategyId = strategyId;
+		this.strategy = strategy;
 		this.mimicsOpponent = mimicsOpponent;
 		this.equipment = equipment;
 	}
@@ -654,16 +724,6 @@ class Creature
 		return creature;
 	}
 
-	picture(adventure)
-	{
-		return adventure.pictureById(this.pictureId);
-	}
-
-	toCanvas(adventure)
-	{
-		return this.picture(adventure).toCanvas();
-	}
-
 	// Bytes.
 
 	static fromBytes(bytes)
@@ -673,23 +733,74 @@ class Creature
 		var id = -1; // todo
 		var name = "todo";
 		var typeId = -1; // todo
-		var pictureId = 1; // todo
 		var attributesAsBytes = reader.readBytes(37);
-		var attributes =
-			CreatureAttributes.fromBytes(attributesAsBytes);
-		var strategyId = "todo";
-		var mimicsOpponent = false;
-		var wealth = "todo";
+
+		var bitStream = BitStream.fromBytes(bytes);
+		var converter = new ByteConverter();
+
+		var magicDamageResistance =
+			bitStream.readIntegerFromBits(2); // todo
+		var constitution = bitStream.readIntegerFromBits(6);
+		var strength = bitStream.readByte();
+		var dexterity = bitStream.readByte();
+		var lifeForce = bitStream.readByte();
+
+		var strategyBraveryLevelId = bitStream.readBit();
+		var strategyAggressionLevelId = bitStream.readBit();
+		var strategyAllegianceId = bitStream.readIntegerFromBits(2);
+
+		var strategy = new CreatureStrategy
+		(
+			strategyBraveryLevelId,
+			strategyAggressionLevelId,
+			strategyAllegianceId
+		);
+
+		var speed = bitStream.readIntegerFromBits(4);
+
+		var power = bitStream.readByte();
+		var dodgeSkill = bitStream.readByte();
+		var parrySkill = bitStream.readByte();
+		var armorSkill = bitStream.readByte(); // 0x19408
+		var mimicsOpponent = bitStream.readIntegerFromBits(1);
+		var meleeSkill = bitStream.readIntegerFromBits(7);
+		var missileSkill = bitStream.readByte(); // 0x1940A
+		var unknown2 = bitStream.readBytes(4); // B - E
+		var size = bitStream.readByte(); // 0x1940F
+		var unknown3 = bitStream.readByte();
+		var wisdom = bitStream.readByte(); // 0x19411
+		var wealthAsBytes = bitStream.readBytes(2);
+		var wealth = converter.bytesToIntegerUnsignedBE(wealthAsBytes); // 0x19412-13
+		var itemReadiedIdWeapon = bitStream.readByte(); // 0x19414
+		var itemReadiedIdArmor = bitStream.readByte(); // 0x19415
+		var pictureId = bitStream.readByte() - 2; // ?
+
+		var attributes = new CreatureAttributes
+		(
+			constitution,
+			strength,
+			dexterity,
+			wisdom,
+			size,
+			lifeForce,
+			power,
+			speed,
+			missileSkill,
+			meleeSkill,
+			armorSkill,
+			dodgeSkill,
+			parrySkill
+		);
+
 		var itemsHeld = []; // todo
-		var itemReadiedArmor = null; // todo
-		var itemReadiedWeapon = null; // todo
+
 		var equipment = new CreatureEquipment
 		(
 			wealth,
 			itemsHeld,
-			itemReadiedArmor,
-			itemReadiedWeapon
-		); // todo
+			itemReadiedIdArmor,
+			itemReadiedIdWeapon
+		);
 
 		var creature = new Creature
 		(
@@ -698,7 +809,7 @@ class Creature
 			typeId,
 			pictureId,
 			attributes,
-			strategyId,
+			strategy,
 			mimicsOpponent,
 			equipment
 		);
@@ -709,6 +820,18 @@ class Creature
 	toBytes()
 	{
 		throw new Error("todo");
+	}
+
+	// Drawing.
+
+	picture(adventure)
+	{
+		return adventure.pictureById(this.pictureId);
+	}
+
+	toCanvas(adventure)
+	{
+		return this.picture(adventure).toCanvas();
 	}
 
 	// JSON.
@@ -772,65 +895,6 @@ class CreatureAttributes
 		this.dodgeSkill = dodgeSkill;
 		this.parrySkill = parrySkill;
 	}
-
-	// Bytes.
-
-	static fromBytes(bytes)
-	{
-		var bitStream = BitStream.fromBytes(bytes);
-		var converter = new ByteConverter();
-
-		var constitution = bitStream.readIntegerFromBits(6);
-		var magicDamageResistance =
-			bitStream.readIntegerFromBits(2);
-		var strength = bitStream.readByte();
-		var dexterity = bitStream.readByte();
-		var lifeForce = bitStream.readByte();
-		var speed = bitStream.readIntegerFromBits(4);
-		var strategyAllegiance = bitStream.readIntegerFromBits(2);
-		var strategyAggressionLevelId = bitStream.readBit();
-		var strategyBraveryLevelId = bitStream.readBit();
-		var power = bitStream.readByte();
-		var dodgeSkill = bitStream.readByte();
-		var parrySkill = bitStream.readByte();
-		var armorSkill = bitStream.readByte(); // 0x19408
-		var meleeSkill = bitStream.readIntegerFromBits(7);
-		var mimicsOpponent = bitStream.readIntegerFromBits(1);
-		var missileSkill = bitStream.readByte(); // 0x1940A
-		var unknown2 = bitStream.readBytes(4); // B - E
-		var size = bitStream.readByte(); // 0x1940F
-		var unknown3 = bitStream.readByte();
-		var wisdom = bitStream.readByte(); // 0x19411
-		var wealthAsBytes = bitStream.readBytes(2);
-		var wealth = converter.bytesToIntegerUnsignedBE(wealthAsBytes); // 0x19412-13
-		var itemReadiedIdWeapon = bitStream.readByte(); // 0x19414
-		var itemReadiedIdArmor = bitStream.readByte(); // 0x19415
-		var pictureId = bitStream.readByte();
-
-		var attributes = new CreatureAttributes
-		(
-			constitution,
-			strength,
-			dexterity,
-			wisdom,
-			size,
-			lifeForce,
-			power,
-			speed,
-			missileSkill,
-			meleeSkill,
-			armorSkill,
-			dodgeSkill,
-			parrySkill
-		);
-
-		return attributes;
-	}
-
-	toBytes()
-	{
-		throw new Error("todo");
-	}
 }
 
 class CreatureEquipment
@@ -839,14 +903,14 @@ class CreatureEquipment
 	(
 		wealth,
 		itemsHeld,
-		itemReadiedArmor,
-		itemReadiedWeapon
+		itemReadiedIdArmor,
+		itemReadiedIdWeapon
 	)
 	{
 		this.wealth = wealth;
 		this.itemsHeld = itemsHeld;
-		this.itemReadiedArmor = itemReadiedArmor;
-		this.itemReadiedWeapon = itemReadiedWeapon;
+		this.itemReadiedIdArmor = itemReadiedIdArmor;
+		this.itemReadiedIdWeapon = itemReadiedIdWeapon;
 	}
 }
 
@@ -854,18 +918,14 @@ class CreatureStrategy
 {
 	constructor
 	(
-		id, braveryLevelId, agressionLevelId, allegianceId
+		braveryLevelId,
+		aggressionLevelId,
+		allegianceId
 	)
 	{
-		this.id = id;
 		this.braveryLevelId = braveryLevelId;
 		this.agressionLevelId = aggressionLevelId;
 		this.allegianceId = allegianceId;
-	}
-
-	static byId(id)
-	{
-		return this.Instances().byId(id);
 	}
 }
 
@@ -1017,49 +1077,6 @@ class CreatureType
 	{
 		this.id = id;
 		this.name = name;
-	}
-
-	static Instances()
-	{
-		if (this._instances == null)
-		{
-			this._instances = new CreatureType_Instances();
-		}
-
-		return this._instances;
-	}
-}
-
-class CreatureType_Instances
-{
-	constructor()
-	{
-		var ct = (id, name) => new CreatureType(id, name);
-		this.PersonsFriends = ct(1, "Persons-Friends");
-		this.PersonsEnemies = ct(2, "Persons-Enemies");
-		this.PersonsNeutral = ct(3, "Persons-Neutral");
-		this.PersonsThieves = ct(4, "Persons-Thieves");
-		this.BeastsHostile 	= ct(5, "Beasts-Hostile");
-		this.BeastsNeutral 	= ct(6, "Beasts-Neutral");
-		this.EvilBeings 	= ct(7, "Evil Beings");
-		this.YourNewIdea 	= ct(8, "Your New Idea");
-
-		this._All =
-		[
-			this.PersonsFriends,
-			this.PersonsEnemies,
-			this.PersonsNeutral,
-			this.PersonsThieves,
-			this.BeastsHostile,
-			this.BeastsNeutral,
-			this.EvilBeings,
-			this.YourNewIdea,
-		];
-	}
-
-	byId(id)
-	{
-		return this._All.find(x => x.id == id);
 	}
 }
 
@@ -1487,6 +1504,11 @@ class Thing
 		this.properties = properties;
 	}
 
+	thingType()
+	{
+		return ThingType.byId(this.typeId);
+	}
+
 	// Bytes.
 
 	static manyFromBytes(bytes)
@@ -1494,12 +1516,10 @@ class Thing
 		throw new Error("todo");
 	}
 
-	static fromIdNameAndBytes(id, name, bytes)
+	static fromIdNameTypeIdAndBytes(id, name, typeId, bytes)
 	{
 		var reader = BitStream.fromBytes(bytes);
 		var converter = new ByteConverter();
-
-		var typeId = "todo";
 
 		//reader.byteIndexSetByteIndex(0x1C000);
 		var countGeneratedMax =
@@ -1539,6 +1559,28 @@ class Thing
 	toBytes()
 	{
 		throw new Error("todo");
+	}
+
+	// Drawing.
+
+	picture(adventure)
+	{
+		return adventure.pictureById(this.pictureId);
+	}
+
+	toCanvas(adventure)
+	{
+		return this.picture(adventure).toCanvas();
+	}
+
+	// Json.
+
+	toJson()
+	{
+		var thisAsObjectToSerialize = this; // todo
+		var thisSerialized =
+			JSON.stringify(thisAsObjectToSerialize, null, 4);
+		return thisSerialized;
 	}
 }
 
@@ -1691,28 +1733,55 @@ class ThingType
 
 		return this._instances;
 	}
+
+	static byId(id)
+	{
+		return this.Instances().byId(id);
+	}
 }
 
 class ThingType_Instances
 {
 	constructor()
 	{
-		this.Armor			= new ThingType(1, "Armor");
-		this.MagicItems		= new ThingType(2, "Magic Items");
-		this.MeleeWeapons	= new ThingType(3, "Melee Weapons");
-		this.MissileWeapons = new ThingType(4, "Missile Weapons");
-		this.MagicSpells	= new ThingType(5, "Magic Spells");
-		this.Treasure		= new ThingType(6, "Treasure");
+		var tt = (id, name) =>
+			new ThingType(id, name);
+
+		this.RoomFloor 			= tt(0, "Room Floor");
+		this.Treasure 			= tt(1, "Treasure");
+		this.MagicItem 			= tt(2, "Magic Item");
+		this.MissileWeapon 		= tt(3, "Missile Weapon");
+		this.MeleeWeapon 		= tt(4, "Melee Weapon");
+		this.Armor 				= tt(5, "Armor");
+		this.MagicSpell 		= tt(6, "Magic Spell");
+		this.Portal 			= tt(7, "Portal");
+		this.Space 				= tt(8, "Space");
+		this.CustomSpace		= tt(9, "Custom Space");
+		this.Obstacle			= tt(10, "Obstacle");
+		this.CustomObstacle 	= tt(11, "Custom Obstacle");
+		this.Store 				= tt(12, "Store");
 
 		this._All =
 		[
+			this.RoomFloor,
+			this.Treasure,
+			this.MagicItem,
+			this.MissileWeapon,
+			this.MeleeWeapon,
 			this.Armor,
-			this.MagicItems,
-			this.MeleeWeapons,
-			this.MissileWeapons,
-			this.MagicSpells,
-			this.Treasure
+			this.MagicSpell,
+			this.Portal,
+			this.Space,
+			this.CustomSpace,
+			this.Obstacle,
+			this.CustomObstacle,
+			this.Store
 		];
+	}
+
+	byId(id)
+	{
+		return this._All.find(x => x.id == id);
 	}
 }
 
@@ -1923,17 +1992,17 @@ class WorldMapCreatureOccurrence
 
 class WorldMapTerrain
 {
-	constructor(id, name, pictureIndex, passability)
+	constructor(id, name, pictureId, passability)
 	{
 		this.id = id;
 		this.name = name;
-		this.pictureIndex = pictureIndex;
+		this.pictureId = pictureId;
 		this.passability = passability;
 	}
 
 	picture(adventure)
 	{
-		return adventure.pictureByIndex(this.pictureIndex);
+		return adventure.pictureById(this.pictureId);
 	}
 
 	// Bytes.

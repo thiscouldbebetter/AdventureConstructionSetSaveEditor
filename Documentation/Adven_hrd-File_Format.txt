@@ -177,29 +177,32 @@ Skull
 Things
 ------
 
+Listings
+--------
+
 Types
 -----
 
-Code	Name
-----	----
-Ar		Armor
-Co		Custom Obstacle
-Cs		Custom Space
-Ma		Magic Item
-Me		Melee Weapon
-Mi		Missile Weapon
-Ms		Magic Spell
-Ob		Obstacle
-Po		Portal
-Rf		Room Floor
-Sp		Space
-St		Store
-Tr		Treasure
-
-Number	Type	Name
+Number	Code	Name
 ------	----	----
-1		Mi 		Oil and Wick
-2		Me		Dagger
+0?		Rf		Room Floor
+1		Tr		Treasure
+2		Ma		Magic Item
+3		Mi		Missile Weapon
+4		Me		Melee Weapon
+5		Ar		Armor
+6		Ms		Magic Spell
+7		Po		Portal
+8		Sp		Space
+9		Cs		Custom Space
+10		Ob		Obstacle
+11		Co		Custom Obstacle
+12		St		Store
+
+Number	Type	Name			First Byte
+------	----	----			----------
+1		Mi 		Oil and Wick 	52=0x34
+2		Me		Dagger			47=0x2f
 3 		Mi		Blessed Water
 
 [4]
@@ -315,12 +318,248 @@ Number	Type	Name
 [120-126]
 127		Rf		Empty Floor
 
-Thing Editing
--------------
-1 - Oil and Wick
+Editing
+-------
 
-Beings
-------
+For things 1-Oil and Wick
+and 2-Dagger,
+prefixed the names with 1 and 2,
+respectively.
+Here's the difference,
+minus the bytes that change every save:
+
+	1B800: 34 21
+	1B801: 5F AB
+	1B802: 36 01
+	1B803: 00 4B
+	1B804: 17 20
+	1B805: 19 58
+	1B806: C3 2B
+	1B807: 38 91
+	1B808: 00 C0
+	1B809: 00 44
+
+	1B80A: 2F A1
+	1B80B: 19 AF
+	1B80C: 9A DD
+	-
+	1B80E: 00 80
+	1B80F: 00 70
+
+Okay, just oil and wick this time:
+
+	1B800: 34 21
+	1B801: 5F AB
+	1B802: 36 01
+	1B803: 00 4B
+	1B804: 17 20
+	1B805: 19 58
+	1B806: C3 2B
+	1B807: 38 91
+	1B808: 00 C0
+	1B809: 00 44
+
+So, the usual 10 bytes per name.
+
+Added new Thing 23-Oil and Wick2,
+of type missile weapon,
+with the same picture as the other,
+but with everything else at default values.
+There are a LOT of changes:
+
+	0001B8DC: 00 34 // Probably the name?
+	0001B8DD: 00 5F
+	0001B8DE: 00 36
+
+	0001B8E0: 00 17 // ?
+	0001B8E1: 00 19
+	0001B8E2: 00 C3
+	0001B8E3: 00 38
+	0001B8E5: 00 AF
+
+	0001BD58: 0F 03 // Or is THIS the name?
+	0001BD59: 0F 00
+	0001BD5A: 0F 00
+	0001BD5B: 0F 25
+
+	0001C082: 6F 72
+	0001C0B3: E4 D6
+	0001C0F3: 07 00
+	0001C0F4: A3 00
+	0001C0F5: 54 30
+	0001C0F6: 88 07
+	0001C0F7: B7 A3
+	0001C0F8: 43 54
+	0001C0F9: 05 88
+	0001C0FA: 97 B7
+	0001C0FB: 09 43
+	0001C0FD: 9D 97
+	0001C0FE: 07 09
+	0001C0FF: 87 05
+	0001C100: 28 9D
+	0001C101: C5 07
+	0001C102: 04 87
+	0001C103: A3 28
+	0001C104: 00 C5
+	0001C105: 82 04
+	0001C106: 28 A3
+	0001C107: 03 00
+	0001C108: 86 82
+	0001C109: 32 28
+	0001C10A: 01 03
+	0001C10B: 09 86
+	0001C10C: 97 32
+	0001C10D: 3D 01
+	0001C10E: 88 09
+	0001C10F: 31 97
+	0001C110: 0A 3D
+	0001C111: 89 88
+	0001C112: 32 31
+	0001C113: 41 0A
+	0001C114: 82 89
+	0001C115: 2A 32
+	0001C116: 2A 41
+	0001C117: 08 82
+	0001C118: B7 2A
+	0001C119: C5 2A
+	0001C11A: 01 08
+	0001C11B: 01 B7
+	0001C11C: 01 C5
+
+Okay, that's too much.
+Change the name to a blank,
+and the picture back to the default,
+a puddle of water.
+Here's the new diff,
+which isn't much, if any, better,
+though it is missing the first few changes:
+
+	1BD58: 0F 03 // Type?
+	1BD59: 0F 00 // Name, I guess?
+	1BD5A: 0F 00
+	1BD5B: 0F 25
+
+	1C082: 6F 72
+	1C0B3: E4 D6
+	1C0F3: 07 00
+	1C0F4: A3 00
+	1C0F5: 54 00
+	1C0F6: 88 07
+	1C0F7: B7 A3
+	1C0F8: 43 54
+	1C0F9: 05 88
+	1C0FA: 97 B7
+	1C0FB: 09 43
+	1C0FD: 9D 97
+	1C0FE: 07 09
+	1C0FF: 87 05
+	1C100: 28 9D
+	1C101: C5 07
+	1C102: 04 87
+	1C103: A3 28
+	1C104: 00 C5
+	1C105: 82 04
+	1C106: 28 A3
+	1C107: 03 00
+	1C108: 86 82
+	1C109: 32 28
+	1C10A: 01 03
+	1C10B: 09 86
+	1C10C: 97 32
+	1C10D: 3D 01
+	1C10E: 88 09
+	1C10F: 31 97
+	1C110: 0A 3D
+	1C111: 89 88
+	1C112: 32 31
+	1C113: 41 0A
+	1C114: 82 89
+	1C115: 2A 32
+	1C116: 2A 41
+	1C117: 08 82
+	1C118: B7 2A
+	1C119: C5 2A
+	1C11A: 01 08
+	1C11B: 01 B7
+	1C11C: 01 C5
+
+Okay, so what if I make thing 23
+a melee weapon instead of a missile weapon,
+and otherwise leave things blank?
+
+Okay, I guess I can't delete things?
+How very very strange.
+I'll restore from backup file,
+then make a new 23 melee weapon.
+
+	0001BD58: 0F 04 // Type?
+
+	0001BD59: 0F 00
+	0001BD5A: 0F 00
+	0001BD5B: 0F 25
+
+	0001C082: 6F 72
+	0001C0B3: E4 D6
+	0001C0F3: 07 00
+	0001C0F4: A3 00
+	0001C0F5: 54 00
+	0001C0F6: 88 07
+	0001C0F7: B7 A3
+	0001C0F8: 43 54
+	0001C0F9: 05 88
+	0001C0FA: 97 B7
+	0001C0FB: 09 43
+	0001C0FD: 9D 97
+	0001C0FE: 07 09
+	0001C0FF: 87 05
+	0001C100: 28 9D
+	0001C101: C5 07
+	0001C102: 04 87
+	0001C103: A3 28
+	0001C104: 00 C5
+	0001C105: 82 04
+	0001C106: 28 A3
+	0001C107: 03 00
+	0001C108: 86 82
+	0001C109: 32 28
+	0001C10A: 01 03
+	0001C10B: 09 86
+	0001C10C: 97 32
+	0001C10D: 3D 01
+	0001C10E: 88 09
+	0001C10F: 31 97
+	0001C110: 0A 3D
+	0001C111: 89 88
+	0001C112: 32 31
+	0001C113: 41 0A
+	0001C114: 82 89
+	0001C115: 2A 32
+	0001C116: 2A 41
+	0001C117: 08 82
+	0001C118: B7 2A
+	0001C119: C5 2A
+	0001C11A: 01 08
+	0001C11B: 01 B7
+	0001C11C: 01 C5
+
+Okay, now I'm gonna make item 24,
+also a blank melee weapon.
+That added, among other things:
+
+	0001BD5C: 0F 04
+	0001BD5D: 0F 00
+	0001BD5E: 0F 00
+	0001BD5F: 0F 26
+
+Sooo...
+I guess I want to know the spacing.
+between 24 at 0x1bd5c
+and 23 at 0x1bd58.
+Well, that's easy, it's 12 - 8 = 4.
+
+
+Creature Listing
+----------------
 
 Types
 -----
@@ -435,6 +674,7 @@ Id	Name			Type
 99	Wraith			EB
 100	Zombie			EB
 101	Wallmonster		BH
+
 
 Terrains
 --------
@@ -705,6 +945,15 @@ to "no magic defense":
 	00019400: 9B 1B
 
 	0x1B = 0b0001_1011
+
+So, let's ignore the first two bits
+of the shared magicalresist/const byte,
+and only consider the lower 6 bits:
+
+	Before (27): 01_1011
+	After (63): 11_1111
+
+Looks right.
 
 Next strength from 16? to 31:
 (16 seems a bit low for Achilles...)
