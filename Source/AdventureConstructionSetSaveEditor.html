@@ -172,7 +172,7 @@ class UiEventHandler
 				}
 				else
 				{
-					var picture = pictures[objectToDrawIndex];
+					var picture = pictures[objectToDrawId - 1];
 					var pictureAsCanvas = picture.toCanvas();
 					divObjectToDraw.appendChild(pictureAsCanvas);
 					var pictureAsJson = picture.toJson();
