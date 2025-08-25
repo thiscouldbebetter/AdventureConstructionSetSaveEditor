@@ -1243,7 +1243,7 @@ class Picture
 			for (var x = 0; x < pictureDimensionInPixels; x++)
 			{
 				var pixelColorIndex = bitStream.readIntegerFromBits(2);
-				pixelColorIndicesForRow.push(pixelColorIndex);
+				pixelColorIndicesForRow.splice(pixelColorIndex);
 			}
 
 			pixelColorIndexRows.push(pixelColorIndicesForRow);
@@ -1366,11 +1366,9 @@ class Picture
 
 						for (var i = 0; i < pixelsPerTetrad; i++)
 						{
-							var iReversed = pixelsPerTetrad - i - 1;
-
 							pixelPosInPixels.x =
 								octantPosInPixels.x
-								+ iReversed;
+								+ i;
 
 							var pixelColorIndex =
 								reader.readIntegerFromBits(2);
