@@ -557,6 +557,81 @@ between 24 at 0x1bd5c
 and 23 at 0x1bd58.
 Well, that's easy, it's 12 - 8 = 4.
 
+Okay, now let's up the picture
+of the oil and wick
+by 1.
+That gives us these diffs,
+separated by 9 bytes!
+
+	0001C000: 9F AF
+	0001C089: 70 71
+
+	0x70 = 7 * 16 = 70 + 42 = 112
+
+Upon changing it back, though,
+the only change that remains is this:
+
+	0001C000: 9F AF
+
+	0x9F = 1001_1111
+	0xAF = 1010_1111
+
+Maybe it's a dirty flag?
+Anyway, let's ignore it for now.
+
+Power for Oil and Wick
+upped to 31 from... 8? 9?
+
+	0001C087: 48 5F
+	0x48 = 0100_1000
+	0x5F = 0101_1111
+
+Range for Oil and Wick
+upped from 4 to 9, which is max.
+
+	0001C087: 48 E8
+
+Weight changed from 10 to 0:
+
+	0001BD01: 0A 00
+
+Weight changed to 5000:
+
+	0001BD00: 13 93
+	0001BD01: 0A 00
+	0001BD02: 14 FA
+
+That third byte seems strange.
+To 2500:
+
+	0001BD00: 13 93
+	0001BD01: 0A 00
+	0001BD02: 14 7D
+
+To 100:
+
+	0001BD01: 0A 00
+	0001BD02: 14 64
+	0x14 = 0001_0100
+	0x64 = 0110_0100
+
+To 50:
+
+	0001BD01: 0A 00
+	0001BD02: 14 32
+
+To 11:
+
+	0001BD01: 0A 00
+	0001BD02: 14 0B
+
+To 9:
+
+	0001BD01: 0A 00
+	0001BD02: 14 09
+
+Ugh.  This seems like a dirty-flag situation.
+
 
 Creature Listing
 ----------------
@@ -830,11 +905,11 @@ Field				Offset				Length	Values 					Notes
 -----				------				------	-----					-----
 thing 1
 	name			0x1b800-09			10		ABCDEFGHIJKLMNO			?
-	ct. generated	0x1c000.hi			4bits	0-14 + infinite			?
-	power			0x1c087				?		0-31					?
-	range			0x1c087.hi5?		1		0-31					?
-	attack adj.		0x1c088.hi?			? 		-35% to 40% x 5%
-	chance break	0x1c088.lo?			?		0% - 15%
+	ct. generated	0x1c000.hi			4 bits	0-14 + infinite			?
+	power			0x1c087				5 bits	0-31					?
+	range			0x1c087.hi5?		5 bits	0-31					?
+	attack adj.		0x1c088.hi?			4 bits 	-35% to 40% x 5%
+	chance break	0x1c088.lo?			4 bits	0% - 15%
 	is magic		0x1c089.hi.1		1 bit	?
 	only owner uses 0x1c089.hi.2		1 bit	?
 	picture			0x1c089.low6?		6 bits?	?						?

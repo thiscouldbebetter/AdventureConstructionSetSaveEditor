@@ -331,16 +331,17 @@ class Adventure
 
 		var reader = BitStream.fromBytes(bytes);
 
-		var messages = this.fromBytes_Messages(reader, converter);
+		var messages =
+			Message.manyFromBytes(reader, converter);
 
 		var things =
-			this.fromBytes_Things(reader, converter, textDecoder);
+			Thing.manyFromBytes(reader, converter, textDecoder);
 
 		var creatureTypes =
-			this.fromBytes_CreatureTypes(reader, converter, TextDecoder);
+			CreatureType.manyFromBytes(reader, converter, TextDecoder);
 
 		var creatures =
-			this.fromBytes_Creatures(reader, converter, textDecoder);
+			Creature.manyFromBytes(reader, converter, textDecoder);
 
 		var adventureNameOffsetInBytes = 0x1C200;
 		reader.byteIndexSet(adventureNameOffsetInBytes);
@@ -381,7 +382,7 @@ class Adventure
 		reader.byteIndexSet(0x1C56e);
 		var musicalThemeId = reader.readByte();
 
-		var pictures = this.fromBytes_Pictures(reader);
+		var pictures = Picture.manyFromBytes(reader);
 
 		var adventure = new Adventure
 		(
@@ -398,294 +399,6 @@ class Adventure
 		);
 
 		return adventure;
-	}
-
-	static fromBytes_Creatures(reader, converter, textDecoder)
-	{
-		var creaturesCount = 128; // ?
-
-		var creatureTypesOffsetInBytes = 0x1B200;
-		var creatureTypeIdLengthInBytes = 1; // Really only the last 3 bits of that, though?
-		var creatureTypeIds = [];
-		for (var c = 0; c < creaturesCount; c++)
-		{
-			var unknown = reader.readBits(5); // ?
-			var creatureTypeId = reader.readIntegerFromBits(3);
-			creatureTypeIds.push(creatureTypeId);
-		}
-
-		var creatureNamesOffsetInBytes = 0x1B280;
-		reader.byteIndexSet(creatureNamesOffsetInBytes);
-
-		var creatureNameSizeInBytes = 10;
-
-		var creatureNames = [];
-		for (var c = 0; c < creaturesCount; c++)
-		{
-			var creatureNameEncodedAsBytes =
-				reader.readBytes(creatureNameSizeInBytes);
-			var creatureName =
-				textDecoder
-					.bytesDecodeToString(creatureNameEncodedAsBytes)
-					.trim();
-			creatureNames.push(creatureName);
-		}
-
-		var creaturesDataOffsetInBytes = 0x19400;
-		reader.byteIndexSet(creaturesDataOffsetInBytes);
-		var creaturesSoFar = [];
-		var creatureSizeInBytes = 37; // 0x25.
-		for (var c = 0; c < creaturesCount; c++)
-		{
-			var creatureId = c + 1;
-			var creatureName = creatureNames[c];
-			var creatureTypeId = creatureTypeIds[c];
-			var creatureAsBytes = reader.readBytes(creatureSizeInBytes);
-			var creature = Creature.fromIdNameTypeIdAndBytes
-			(
-				creatureId, creatureName, creatureTypeId, creatureAsBytes
-			);
-			creaturesSoFar.push(creature);
-		}
-
-		return creaturesSoFar;
-	}
-
-	static fromBytes_CreatureTypes(reader, converter)
-	{
-		var creatureTypeNamesOffsetInBytes = 0x19300;
-		reader.byteIndexSet(creatureTypeNamesOffsetInBytes);
-		var creatureTypeNameSizeInBytes = 15;
-		var creatureTypeNamesCount = 8
-		var creatureTypes = [];
-		for (var i = 0; i < creatureTypeNamesCount; i++)
-		{
-			var creatureTypeNameAsBytes =
-				reader.readBytes(creatureTypeNameSizeInBytes);
-
-			// This is weird.  A different encoding is used for default names.
-			var creatureTypeNameIsDefault =
-				creatureTypeNameAsBytes.some(x => x <= 0x20);
-			if (creatureTypeNameIsDefault)
-			{
-				creatureTypeNameAsBytes =
-					creatureTypeNameAsBytes.map(x => x >= 0x20 ? x : x + 0x40);
-			}
-			var creatureTypeName =
-				converter
-					.bytesToString(creatureTypeNameAsBytes)
-					.trim();
-			var creatureTypeId = i; // Add to it?
-			var creatureType =
-				new CreatureType(creatureTypeId, creatureTypeName);
-			creatureTypes.push(creatureType);
-		}
-
-		return creatureTypes;
-	}
-
-	static fromBytes_Messages(reader, converter)
-	{
-		var messagesOffsetInBytes = 0x16C00;
-		var messageSizeInBytes = 0x100;
-		var messages = [];
-		var messagesCount = 255; // todo
-		reader.byteIndexSet(messagesOffsetInBytes);
-		for (var m = 0; m < messagesCount; m++)
-		{
-			var messageAsBytes =
-				reader.readBytes(messagesOffsetInBytes);
-			var message = converter.bytesToString(messageAsBytes);
-			messages.push(message);
-		}
-
-		return messages;
-	}
-
-	static fromBytes_Pictures(reader)
-	{
-		var pictures = [];
-		var picturesCount = 128; // ?
-		for (var p = 0; p < picturesCount; p++)
-		{
-			var picture = Picture.fromId(p);
-			pictures.push(picture);
-		}
-
-		var pictureSizeInPixels =
-			Picture.sizeInPixels(); // 16 x 16 pixels.
-		var picturePixelCount =
-			pictureSizeInPixels.x
-			* pictureSizeInPixels.y;
-		var bitsPerPixel = 2;
-		var pictureSizeInBits =
-			picturePixelCount * bitsPerPixel;
-		var pictureSizeInBytes =
-			pictureSizeInBits / 8;
-		var pictureQuadrantSizeInBytes =
-			pictureSizeInBytes / 4;
-
-		var picture0OffsetInBytes = 0x28720; // ?
-		reader.byteIndexSet(picture0OffsetInBytes);
-
-		// 4x1 tetrads of pixels
-		// are encoded as individual bytes.
-		// The order of tetrads, in bytes offset from
-		// the 0th tetrad, are:
-		//	0...----8...----
-		//	1...----9...----
-		//	2...----a...----
-		//	3...----b...----
-		//	4...----c...----
-		//	5...----d...----
-		//	6...----e...----
-		//	7...----f...----
-		//	----------------
-		//	----------------
-		//	----------------
-		//	----------------
-		//	----------------
-		//	----------------
-		//	----------------
-		//	----------------
-		// The next byte encodes the upper-left
-		// tetrad of pixels of the subsequent picture!
-		// Assuming that it'll do those two columns of tetrads
-		// in every picture next,
-		// that's 16 bytes,
-		// and there are 128 pictures(?),
-		// so if we advance 16 x 128 = 2,048 bytes,
-		// then we'll return to the next tetrad of pixels
-		// in THIS picture.
-		// Maybe it'll be the upper-left pixel
-		// of the left half
-		// of the lower-left quadrant?
-		// That position is, uh, 28F30,
-		// which is 2,048 bytes from the first,
-		// upper-left byte of the picture.
-
-		var octantPairOffsetWithinPictureInPixels = new Coords(0, 0);
-		var octantOffsetWithinPairInPixels = new Coords(0, 0);
-		var octantPosInPixels = new Coords(0, 0);
-		var tetradOffsetWithinOctantInPixels = new Coords(0, 0);
-		var pixelPosInPixels = new Coords(0, 0);
-		var pixelsPerTetrad = 4;
-		var octantsPerOctantPair = 2;
-		var octantSizeInTetrads = 8;
-
-		for (var octantPairIndex = 0; octantPairIndex < 4; octantPairIndex++)
-		{
-			if (octantPairIndex == 2)
-			{
-				// I don't know why this jump is needed,
-				// or what lies in between.
-				reader.byteIndexSet(0x2AB20);
-			}
-
-			octantPairOffsetWithinPictureInPixels.y =
-				(octantPairIndex  % 2)
-				* pictureSizeInPixels.y / 2;
-
-			octantPairOffsetWithinPictureInPixels.x =
-				Math.floor(octantPairIndex  / 2)
-				* pictureSizeInPixels.x / 4;
-
-			for (var p = 0; p < picturesCount; p++)
-			{
-				var picture = pictures[p];
-
-				for (var octantIndexWithinPair = 0; octantIndexWithinPair < octantsPerOctantPair; octantIndexWithinPair++)
-				{
-					octantOffsetWithinPairInPixels.x =
-						octantIndexWithinPair * pictureSizeInPixels.x / 2;
-
-					octantPosInPixels.x =
-						octantPairOffsetWithinPictureInPixels.x
-						+ octantOffsetWithinPairInPixels.x;
-
-					for (var ty = 0; ty < octantSizeInTetrads; ty++)
-					{
-						tetradOffsetWithinOctantInPixels.y = ty;
-
-						pixelPosInPixels.y =
-							octantPairOffsetWithinPictureInPixels.y
-							+ octantOffsetWithinPairInPixels.y
-							+ tetradOffsetWithinOctantInPixels.y;
-
-						for (var i = 0; i < pixelsPerTetrad; i++)
-						{
-							var iReversed = pixelsPerTetrad - i - 1;
-
-							pixelPosInPixels.x =
-								octantPosInPixels.x
-								+ iReversed;
-
-							var pixelColorIndex =
-								reader.readIntegerFromBits(2);
-
-							picture.pixelAtPosSetToColorIndex
-							(
-								pixelPosInPixels,
-								pixelColorIndex
-							);
-						}
-					}
-				}
-			}
-		}
-
-		return pictures;
-	}
-
-	static fromBytes_Things(reader, converter, textDecoder)
-	{
-		var thingNamesOffsetInBytes = 0x1B800;
-		reader.byteIndexSet(thingNamesOffsetInBytes);
-
-		var thingNameSizeInBytes = 10;
-		var thingsCount = 128; // ?
-
-		var thingNames = [];
-		for (var t = 0; t < thingsCount; t++)
-		{
-			var thingNameEncodedAsBytes =
-				reader.readBytes(thingNameSizeInBytes);
-			var thingName =
-				textDecoder
-					.bytesDecodeToString(thingNameEncodedAsBytes)
-					.trim();
-			thingNames.push(thingName);
-		}
-
-		var thingTypeIds = [];
-		for (var t = 0; t < thingsCount; t++)
-		{
-			var unknown = reader.readIntegerFromBits(4);
-			var thingTypeId = reader.readIntegerFromBits(4);
-			var unknown2 = reader.readBytes(3);
-			thingTypeIds.push(thingTypeId);
-		}
-		// This leaves us at 0x1BF00,
-		// which is 256 bytes unaccounted for.
-
-		var thingsOffsetInBytes = 0x1C000; // ?
-		reader.byteIndexSet(thingsOffsetInBytes);
-		var thingsSoFar = [];
-		var thingSizeInBytes = 4096; // ?
-		for (var t = 0; t < thingsCount; t++)
-		{
-			var thingId = t + 1;
-			var thingName = thingNames[t];
-			var thingTypeId = thingTypeIds[t];
-			var thingAsBytes = reader.readBytes(thingSizeInBytes);
-			var thing = Thing.fromIdNameTypeIdAndBytes
-			(
-				thingId, thingName, thingTypeId, thingAsBytes
-			);
-			thingsSoFar.push(thing);
-		}
-
-		return thingsSoFar;
 	}
 
 	toBytes()
@@ -783,6 +496,57 @@ class Creature
 	}
 
 	// Bytes.
+
+	static manyFromBytes(reader, converter, textDecoder)
+	{
+		var creaturesCount = 128; // ?
+
+		var creatureTypesOffsetInBytes = 0x1B200;
+		var creatureTypeIdLengthInBytes = 1; // Really only the last 3 bits of that, though?
+		var creatureTypeIds = [];
+		for (var c = 0; c < creaturesCount; c++)
+		{
+			var unknown = reader.readBits(5); // ?
+			var creatureTypeId = reader.readIntegerFromBits(3);
+			creatureTypeIds.push(creatureTypeId);
+		}
+
+		var creatureNamesOffsetInBytes = 0x1B280;
+		reader.byteIndexSet(creatureNamesOffsetInBytes);
+
+		var creatureNameSizeInBytes = 10;
+
+		var creatureNames = [];
+		for (var c = 0; c < creaturesCount; c++)
+		{
+			var creatureNameEncodedAsBytes =
+				reader.readBytes(creatureNameSizeInBytes);
+			var creatureName =
+				textDecoder
+					.bytesDecodeToString(creatureNameEncodedAsBytes)
+					.trim();
+			creatureNames.push(creatureName);
+		}
+
+		var creaturesDataOffsetInBytes = 0x19400;
+		reader.byteIndexSet(creaturesDataOffsetInBytes);
+		var creaturesSoFar = [];
+		var creatureSizeInBytes = 37; // 0x25.
+		for (var c = 0; c < creaturesCount; c++)
+		{
+			var creatureId = c + 1;
+			var creatureName = creatureNames[c];
+			var creatureTypeId = creatureTypeIds[c];
+			var creatureAsBytes = reader.readBytes(creatureSizeInBytes);
+			var creature = Creature.fromIdNameTypeIdAndBytes
+			(
+				creatureId, creatureName, creatureTypeId, creatureAsBytes
+			);
+			creaturesSoFar.push(creature);
+		}
+
+		return creaturesSoFar;
+	}
 
 	static fromBytes(bytes)
 	{
@@ -1164,6 +928,40 @@ class CreatureType
 		this.id = id;
 		this.name = name;
 	}
+
+	static manyFromBytes(reader, converter)
+	{
+		var creatureTypeNamesOffsetInBytes = 0x19300;
+		reader.byteIndexSet(creatureTypeNamesOffsetInBytes);
+		var creatureTypeNameSizeInBytes = 15;
+		var creatureTypeNamesCount = 8
+		var creatureTypes = [];
+		for (var i = 0; i < creatureTypeNamesCount; i++)
+		{
+			var creatureTypeNameAsBytes =
+				reader.readBytes(creatureTypeNameSizeInBytes);
+
+			// This is weird.  A different encoding is used for default names.
+			var creatureTypeNameIsDefault =
+				creatureTypeNameAsBytes.some(x => x <= 0x20);
+			if (creatureTypeNameIsDefault)
+			{
+				creatureTypeNameAsBytes =
+					creatureTypeNameAsBytes.map(x => x >= 0x20 ? x : x + 0x40);
+			}
+			var creatureTypeName =
+				converter
+					.bytesToString(creatureTypeNameAsBytes)
+					.trim();
+			var creatureTypeId = i; // Add to it?
+			var creatureType =
+				new CreatureType(creatureTypeId, creatureTypeName);
+			creatureTypes.push(creatureType);
+		}
+
+		return creatureTypes;
+	}
+
 }
 
 class Effect
@@ -1284,6 +1082,24 @@ class Message
 	{
 		this.id = id;
 		this.text = text;
+	}
+
+	static manyFromBytes(reader, converter)
+	{
+		var messagesOffsetInBytes = 0x16C00;
+		var messageSizeInBytes = 0x100;
+		var messages = [];
+		var messagesCount = 255; // todo
+		reader.byteIndexSet(messagesOffsetInBytes);
+		for (var m = 0; m < messagesCount; m++)
+		{
+			var messageAsBytes =
+				reader.readBytes(messagesOffsetInBytes);
+			var message = converter.bytesToString(messageAsBytes);
+			messages.push(message);
+		}
+
+		return messages;
 	}
 }
 
@@ -1438,6 +1254,141 @@ class Picture
 		return picture;
 	}
 
+	static manyFromBytes(reader)
+	{
+		var pictures = [];
+		var picturesCount = 128; // ?
+		for (var p = 0; p < picturesCount; p++)
+		{
+			var picture = Picture.fromId(p);
+			pictures.push(picture);
+		}
+
+		var pictureSizeInPixels =
+			Picture.sizeInPixels(); // 16 x 16 pixels.
+		var picturePixelCount =
+			pictureSizeInPixels.x
+			* pictureSizeInPixels.y;
+		var bitsPerPixel = 2;
+		var pictureSizeInBits =
+			picturePixelCount * bitsPerPixel;
+		var pictureSizeInBytes =
+			pictureSizeInBits / 8;
+		var pictureQuadrantSizeInBytes =
+			pictureSizeInBytes / 4;
+
+		var picture0OffsetInBytes = 0x28720; // ?
+		reader.byteIndexSet(picture0OffsetInBytes);
+
+		// 4x1 tetrads of pixels
+		// are encoded as individual bytes.
+		// The order of tetrads, in bytes offset from
+		// the 0th tetrad, are:
+		//	0...----8...----
+		//	1...----9...----
+		//	2...----a...----
+		//	3...----b...----
+		//	4...----c...----
+		//	5...----d...----
+		//	6...----e...----
+		//	7...----f...----
+		//	----------------
+		//	----------------
+		//	----------------
+		//	----------------
+		//	----------------
+		//	----------------
+		//	----------------
+		//	----------------
+		// The next byte encodes the upper-left
+		// tetrad of pixels of the subsequent picture!
+		// Assuming that it'll do those two columns of tetrads
+		// in every picture next,
+		// that's 16 bytes,
+		// and there are 128 pictures(?),
+		// so if we advance 16 x 128 = 2,048 bytes,
+		// then we'll return to the next tetrad of pixels
+		// in THIS picture.
+		// Maybe it'll be the upper-left pixel
+		// of the left half
+		// of the lower-left quadrant?
+		// That position is, uh, 28F30,
+		// which is 2,048 bytes from the first,
+		// upper-left byte of the picture.
+
+		var octantPairOffsetWithinPictureInPixels = new Coords(0, 0);
+		var octantOffsetWithinPairInPixels = new Coords(0, 0);
+		var octantPosInPixels = new Coords(0, 0);
+		var tetradOffsetWithinOctantInPixels = new Coords(0, 0);
+		var pixelPosInPixels = new Coords(0, 0);
+		var pixelsPerTetrad = 4;
+		var octantsPerOctantPair = 2;
+		var octantSizeInTetrads = 8;
+
+		for (var octantPairIndex = 0; octantPairIndex < 4; octantPairIndex++)
+		{
+			if (octantPairIndex == 2)
+			{
+				// I don't know why this jump is needed,
+				// or what lies in between.
+				reader.byteIndexSet(0x2AB20);
+			}
+
+			octantPairOffsetWithinPictureInPixels.y =
+				(octantPairIndex  % 2)
+				* pictureSizeInPixels.y / 2;
+
+			octantPairOffsetWithinPictureInPixels.x =
+				Math.floor(octantPairIndex  / 2)
+				* pictureSizeInPixels.x / 4;
+
+			for (var p = 0; p < picturesCount; p++)
+			{
+				var picture = pictures[p];
+
+				for (var octantIndexWithinPair = 0; octantIndexWithinPair < octantsPerOctantPair; octantIndexWithinPair++)
+				{
+					octantOffsetWithinPairInPixels.x =
+						octantIndexWithinPair * pictureSizeInPixels.x / 2;
+
+					octantPosInPixels.x =
+						octantPairOffsetWithinPictureInPixels.x
+						+ octantOffsetWithinPairInPixels.x;
+
+					for (var ty = 0; ty < octantSizeInTetrads; ty++)
+					{
+						tetradOffsetWithinOctantInPixels.y = ty;
+
+						pixelPosInPixels.y =
+							octantPairOffsetWithinPictureInPixels.y
+							+ octantOffsetWithinPairInPixels.y
+							+ tetradOffsetWithinOctantInPixels.y;
+
+						for (var i = 0; i < pixelsPerTetrad; i++)
+						{
+							var iReversed = pixelsPerTetrad - i - 1;
+
+							pixelPosInPixels.x =
+								octantPosInPixels.x
+								+ iReversed;
+
+							var pixelColorIndex =
+								reader.readIntegerFromBits(2);
+
+							picture.pixelAtPosSetToColorIndex
+							(
+								pixelPosInPixels,
+								pixelColorIndex
+							);
+						}
+					}
+				}
+			}
+		}
+
+		return pictures;
+	}
+
 	toBytes()
 	{
 		throw new Error("todo");
@@ -1577,17 +1528,20 @@ class Thing
 		id,
 		name,
 		typeId,
-		pictureId,
 		countGeneratedMax,
-		properties
+		details
 	)
 	{
 		this.id = id;
 		this.name = name;
 		this.typeId = typeId;
-		this.pictureId = pictureId;
 		this.countGeneratedMax = countGeneratedMax;
-		this.properties = properties;
+		this.details = details;
+	}
+
+	picture()
+	{
+		return this.details.visible.picture(adventure);
 	}
 
 	thingType()
@@ -1597,12 +1551,66 @@ class Thing
 
 	// Bytes.
 
-	static manyFromBytes(bytes)
+	static manyFromBytes(reader, converter, textDecoder)
 	{
-		throw new Error("todo");
+		var thingNamesOffsetInBytes = 0x1B800;
+		reader.byteIndexSet(thingNamesOffsetInBytes);
+
+		var thingNameSizeInBytes = 10;
+		var thingsCount = 128; // ?
+
+		var thingNames = [];
+		for (var t = 0; t < thingsCount; t++)
+		{
+			var thingNameEncodedAsBytes =
+				reader.readBytes(thingNameSizeInBytes);
+			var thingName =
+				textDecoder
+					.bytesDecodeToString(thingNameEncodedAsBytes)
+					.trim();
+			thingNames.push(thingName);
+		}
+
+		var thingTypeIds = [];
+		for (var t = 0; t < thingsCount; t++)
+		{
+			var unknown = reader.readIntegerFromBits(4);
+			var thingTypeId = reader.readIntegerFromBits(4);
+			var unknown2 = reader.readBytes(3);
+			thingTypeIds.push(thingTypeId);
+		}
+		// This leaves us at 0x1BF00,
+		// which is 256 bytes unaccounted for.
+
+		var thingsOffsetInBytes = 0x1C000; // ?
+		reader.byteIndexSet(thingsOffsetInBytes);
+		var things = [];
+		var thingSizeInBytes = 4096; // ?
+		for (var t = 0; t < thingsCount; t++)
+		{
+			var thingId = t + 1;
+			var thingName = thingNames[t];
+			var thingTypeId = thingTypeIds[t];
+			var thingType = ThingType.byId(thingTypeId);
+			if (thingType == null)
+			{
+				things.push(null);
+			}
+			else
+			{
+				var thingAsBytes = reader.readBytes(thingSizeInBytes);
+				var thing = Thing.fromIdNameTypeAndBytes
+				(
+					thingId, thingName, thingType, thingAsBytes
+				);
+				things.push(thing);
+			}
+		}
+
+		return things;
 	}
 
-	static fromIdNameTypeIdAndBytes(id, name, typeId, bytes)
+	static fromIdNameTypeAndBytes(id, name, thingType, bytes)
 	{
 		var reader = BitStream.fromBytes(bytes);
 		var converter = new ByteConverter();
@@ -1611,34 +1619,18 @@ class Thing
 		var countGeneratedMax =
 			reader.readIntegerFromBits(4);
 
-		//reader.byteIndexSetByteIndex(0x1C087);
-		var power = reader.readIntegerFromBits(5);
-		var range = reader.readIntegerFromBits(5);
-		var attackAdjustmentEncoded =
-			reader.readIntegerFromBits(4);
-		var attackAdjustmentAsPercentage = 
-			attackAdjustmentEncoded * 5 - 40;
-		var chanceOfBreakingAsPercentage =
-			reader.readIntegerFromBits(4);
-		var isMagic = (reader.readBit() > 0);
-		var onlyOwnerCanUse = (reader.readBit() > 0);
-		var pictureId = reader.readIntegerFromBits(6);
+		reader.byteIndexSet(0x87); // hack
 
-		//reader.byteIndexSet(0x1BD00);
-		var diesOnUse = reader.readBit() > 0;
-		var weight = reader.readIntegerFromBits(15);
-		var value = reader.readIntegerFromBits(16);
-
-		var properties = []; // todo
+		var details =
+			thingType.detailsFromBytes(reader);
 
 		return new Thing
 		(
 			id,
 			name,
-			typeId,
-			pictureId,
+			thingType.id,
 			countGeneratedMax,
-			properties
+			details
 		);
 	}
 
@@ -1651,7 +1643,7 @@ class Thing
 
 	picture(adventure)
 	{
-		return adventure.pictureById(this.pictureId);
+		return adventure.pictureById(this.details.visible.pictureId);
 	}
 
 	toCanvas(adventure)
@@ -1670,7 +1662,7 @@ class Thing
 	}
 }
 
-class ThingPropertiesArmor
+class ThingDetailsArmor
 {
 	constructor
 	(
@@ -1687,7 +1679,7 @@ class ThingPropertiesArmor
 	}
 }
 
-class ThingPropertiesCarryable
+class ThingDetailsCarryable
 {
 	constructor
 	(
@@ -1695,7 +1687,8 @@ class ThingPropertiesCarryable
 		value,
 		magical,
 		disappearsWhenDropped,
-		disappearsWhenUsed
+		disappearsWhenUsed,
+		disappearsWhenHolderDies
 	)
 	{
 		this.weight = weight;
@@ -1707,7 +1700,23 @@ class ThingPropertiesCarryable
 	}
 }
 
-class ThingPropertiesEffector
+class ThingDetailsDevice
+{
+	// "Magic Item".
+
+	constructor
+	(
+		triggersWhenPickedUp,
+		triggersWhenUsed,
+		triggersWhenDropped,
+		effectWhenTriggered
+	)
+	{
+		this.effectWhenUsed = effectWhenUsed;
+	}
+}
+
+class ThingDetailsEffector
 {
 	// "Magic Spell".
 	constructor()
@@ -1717,7 +1726,7 @@ class ThingPropertiesEffector
 	}
 }
 
-class ThingPropertiesObstacle
+class ThingDetailsObstacle
 {
 	constructor(effectWhenBumped)
 	{
@@ -1725,7 +1734,7 @@ class ThingPropertiesObstacle
 	}
 }
 
-class ThingPropertiesSpace
+class ThingDetailsSpace
 {
 	constructor
 	(
@@ -1745,7 +1754,7 @@ class ThingPropertiesSpace
 	}
 }
 
-class ThingPropertiesSpaceCustom
+class ThingDetailsSpaceCustom
 {
 	constructor()
 	{
@@ -1753,29 +1762,13 @@ class ThingPropertiesSpaceCustom
 	}
 }
 
-class ThingPropertiesStore
+class ThingDetailsStore
 {
 	constructor()
 	{}
 }
 
-class ThingPropertiesDevice
-{
-	// "Magic Item".
-
-	constructor
-	(
-		triggersWhenPickedUp,
-		triggersWhenUsed,
-		triggersWhenDropped,
-		effectWhenTriggered
-	)
-	{
-		this.effectWhenUsed = effectWhenUsed;
-	}
-}
-
-class ThingPropertiesUsable
+class ThingDetailsUsable
 {
 	constructor(durable)
 	{
@@ -1783,7 +1776,15 @@ class ThingPropertiesUsable
 	}
 }
 
-class ThingPropertiesWeapon
+class ThingDetailsVisible
+{
+	constructor(pictureId)
+	{
+		this.pictureId = pictureId;
+	}
+}
+
+class ThingDetailsWeapon
 {
 	constructor
 	(
@@ -1800,14 +1801,81 @@ class ThingPropertiesWeapon
 		this.chanceOfBreakingAsPercentage =
 			chanceOfBreakingAsPercentage;
 	}
+
+	static fromBytes(reader)
+	{
+		var range = reader.readIntegerFromBits(3) + 2;
+		var power = reader.readIntegerFromBits(5);
+		var attackAdjustmentEncoded =
+			reader.readIntegerFromBits(4);
+		var attackAdjustmentAsPercentage = 
+			attackAdjustmentEncoded * 5 - 35;
+		var chanceOfBreakingAsPercentage =
+			reader.readIntegerFromBits(4);
+
+		return new ThingDetailsWeapon
+		(
+			power,
+			range,
+			attackAdjustmentAsPercentage,
+			chanceOfBreakingAsPercentage
+		);
+	}
+}
+
+class ThingDetailsWeaponMissile
+{
+	constructor(visible, carryable, weapon)
+	{
+		this.visible = visible;
+		this.carryable = carryable;
+		this.weapon = weapon;
+	}
+
+	static fromBytes(reader)
+	{
+		var weapon =
+			ThingDetailsWeapon.fromBytes(reader);
+
+		var magical = (reader.readBit() > 0);
+		var onlyOwnerCanUse = (reader.readBit() > 0);
+
+		var pictureId = reader.readIntegerFromBits(6); // ?
+		var visible = new ThingDetailsVisible
+		(
+			pictureId
+		);
+
+		var diesOnUse = reader.readBit() > 0;
+		var weight = reader.readIntegerFromBits(15);
+		var value = reader.readIntegerFromBits(16);
+
+		var carryable = new ThingDetailsCarryable
+		(
+			weight,
+			value,
+			magical,
+			"todo-disappearsWhenDropped",
+			diesOnUse,
+			onlyOwnerCanUse
+		);
+
+		return new ThingDetailsWeaponMissile
+		(
+			visible,
+			carryable,
+			weapon
+		);
+	}
 }
 
 class ThingType
 {
-	constructor(id, name)
+	constructor(id, name, detailsFromBytes)
 	{
 		this.id = id;
 		this.name = name;
+		this._detailsFromBytes = detailsFromBytes;
 	}
 
 	static Instances()
@@ -1824,28 +1892,33 @@ class ThingType
 	{
 		return this.Instances().byId(id);
 	}
+
+	detailsFromBytes(reader)
+	{
+		return this._detailsFromBytes(reader);
+	}
 }
 
 class ThingType_Instances
 {
 	constructor()
 	{
-		var tt = (id, name) =>
-			new ThingType(id, name);
+		var tt = (id, name, detailsFromBytes) =>
+			new ThingType(id, name, detailsFromBytes);
 
-		this.RoomFloor 			= tt(0, "Room Floor");
-		this.Treasure 			= tt(1, "Treasure");
-		this.MagicItem 			= tt(2, "Magic Item");
-		this.MissileWeapon 		= tt(3, "Missile Weapon");
-		this.MeleeWeapon 		= tt(4, "Melee Weapon");
-		this.Armor 				= tt(5, "Armor");
-		this.MagicSpell 		= tt(6, "Magic Spell");
-		this.Portal 			= tt(7, "Portal");
-		this.Space 				= tt(8, "Space");
-		this.CustomSpace		= tt(9, "Custom Space");
-		this.Obstacle			= tt(10, "Obstacle");
-		this.CustomObstacle 	= tt(11, "Custom Obstacle");
-		this.Store 				= tt(12, "Store");
+		this.RoomFloor 			= tt(0, "Room Floor",		this.detailsFromBytes_Todo);
+		this.Treasure 			= tt(1, "Treasure", 		this.detailsFromBytes_Todo);
+		this.MagicItem 			= tt(2, "Magic Item", 		this.detailsFromBytes_Todo);
+		this.MissileWeapon 		= tt(3, "Missile Weapon", 	this.detailsFromBytes_MissileWeapon);
+		this.MeleeWeapon 		= tt(4, "Melee Weapon", 	this.detailsFromBytes_Todo);
+		this.Armor 				= tt(5, "Armor", 			this.detailsFromBytes_Todo);
+		this.MagicSpell 		= tt(6, "Magic Spell", 		this.detailsFromBytes_Todo);
+		this.Portal 			= tt(7, "Portal", 			this.detailsFromBytes_Todo);
+		this.Space 				= tt(8, "Space", 			this.detailsFromBytes_Todo);
+		this.CustomSpace		= tt(9, "Custom Space", 	this.detailsFromBytes_Todo);
+		this.Obstacle			= tt(10, "Obstacle", 		this.detailsFromBytes_Todo);
+		this.CustomObstacle 	= tt(11, "Custom Obstacle", this.detailsFromBytes_Todo);
+		this.Store 				= tt(12, "Store", 			this.detailsFromBytes_Todo);
 
 		this._All =
 		[
@@ -1868,6 +1941,18 @@ class ThingType_Instances
 	byId(id)
 	{
 		return this._All.find(x => x.id == id);
+	}
+
+	// Properties.
+
+	detailsFromBytes_Todo(reader)
+	{
+		return "todo";
+	}
+
+	detailsFromBytes_MissileWeapon(reader)
+	{
+		return ThingDetailsWeaponMissile.fromBytes(reader);
 	}
 }
 
