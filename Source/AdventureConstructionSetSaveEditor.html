@@ -415,7 +415,7 @@ class Adventure
 
 	toJson()
 	{
-		return "todo"; // JSON.stringify(this, null, 4);
+		return "New adventure loaded.";
 	}
 }
 
@@ -441,6 +441,13 @@ class Coords
 	{
 		this.x *= other.x;
 		this.y *= other.y;
+		return this;
+	}
+
+	multiplyScalar(scalar)
+	{
+		this.x *= scalar;
+		this.y *= scalar;
 		return this;
 	}
 
@@ -653,7 +660,7 @@ class Creature
 
 	toCanvas(adventure)
 	{
-		return this.picture(adventure).toCanvas();
+		return this.picture(adventure).toCanvasEnlarged();
 	}
 
 	// JSON.
@@ -1147,7 +1154,7 @@ class Picture
 			pixelColorIndexRows;
 		if (this.pixelColorIndexRows == null)
 		{
-			var size = Picture.sizeInPixels();
+			var size = Picture.sizeInCells();
 			this.pixelColorIndexRows = [];
 			for (var y = 0; y < size.y; y++)
 			{
@@ -1166,27 +1173,37 @@ class Picture
 		return new Picture(id, null);
 	}
 
-	static sizeInPixels()
+	static sizeInCells()
 	{
-		if (this._sizeInPixels == null)
+		if (this._sizeInCells == null)
 		{
-			this._sizeInPixels = Coords.fromXY(16, 16);
+			this._sizeInCells = Coords.fromXY(16, 16);
 		}
-		return this._sizeInPixels;
+		return this._sizeInCells;
 	}
 
-	pixelAtPosGetColorIndex(pixelPos)
+	cellAtPosGetColorIndex(pixelPos)
 	{
 		return this.pixelColorIndexRows[pixelPos.y][pixelPos.x];
 	}
 
-	pixelAtPosSetToColorIndex(pixelPos, colorIndex)
+	cellAtPosSetToColorIndex(pixelPos, colorIndex)
 	{
 		var row = this.pixelColorIndexRows[pixelPos.y];
 		row[pixelPos.x] = colorIndex;
 	}
 
 	toCanvas()
+	{
+		return this.toCanvasWithScaleFactor(1);
+	}
+
+	toCanvasEnlarged()
+	{
+		return this.toCanvasWithScaleFactor(3);
+	}
+
+	toCanvasWithScaleFactor(scaleFactor)
 	{
 		if (this._canvas == null)
 		{
@@ -1197,27 +1214,47 @@ class Picture
 				"Brown",
 				"White"
 			];
-		
+
 			var d = document;
 			var canvas = d.createElement("canvas");
-			var pictureSizeInPixels = Picture.sizeInPixels();
+			var pictureSizeInCells = Picture.sizeInCells();
+			var cellSizeInPixels =
+				new Coords(1, 1).multiplyScalar(scaleFactor);
+			var pictureSizeInPixels =
+				pictureSizeInCells
+					.clone()
+					.multiply(cellSizeInPixels);
 			canvas.width = pictureSizeInPixels.x;
 			canvas.height = pictureSizeInPixels.y;
 			var g = canvas.getContext("2d");
 
-			var pixelPosInPixels = new Coords();
-			for (var py = 0; py < pictureSizeInPixels.y; py++)
+			var cellPosInCells = new Coords();
+			var cellPosInPixels = new Coords();
+
+			for (var y = 0; y < pictureSizeInCells.y; y++)
 			{
-				pixelPosInPixels.y = py;
-				for (var px = 0; px < pictureSizeInPixels.x; px++)
+				cellPosInCells.y = y;
+
+				for (var x = 0; x < pictureSizeInCells.x; x++)
 				{
-					pixelPosInPixels.x = px;
-					var pixelColorIndex =
-						this.pixelAtPosGetColorIndex(pixelPosInPixels);
-					var pixelColor =
-						colorsByIndex[pixelColorIndex];
-					g.fillStyle = pixelColor;
-					g.fillRect(pixelPosInPixels.x, pixelPosInPixels.y, 1, 1);
+					cellPosInCells.x = x;
+
+					var cellColorIndex =
+						this.cellAtPosGetColorIndex(cellPosInCells);
+
+					var cellColor =
+						colorsByIndex[cellColorIndex];
+
+					cellPosInPixels
+						.overwriteWith(cellPosInCells)
+						.multiply(cellSizeInPixels);
+
+					g.fillStyle = cellColor;
+					g.fillRect
+					(
+						cellPosInPixels.x, cellPosInPixels.y,
+						cellSizeInPixels.x, cellSizeInPixels.y
+					);
 				}
 			}
 
@@ -1265,7 +1302,7 @@ class Picture
 		}
 
 		var pictureSizeInPixels =
-			Picture.sizeInPixels(); // 16 x 16 pixels.
+			Picture.sizeInCells(); // 16 x 16 pixels.
 		var picturePixelCount =
 			pictureSizeInPixels.x
 			* pictureSizeInPixels.y;
@@ -1373,7 +1410,7 @@ class Picture
 							var pixelColorIndex =
 								reader.readIntegerFromBits(2);
 
-							picture.pixelAtPosSetToColorIndex
+							picture.cellAtPosSetToColorIndex
 							(
 								pixelPosInPixels,
 								pixelColorIndex
@@ -1646,7 +1683,7 @@ class Thing
 
 	toCanvas(adventure)
 	{
-		return this.picture(adventure).toCanvas();
+		return this.picture(adventure).toCanvasEnlarged();
 	}
 
 	// Json.
@@ -1662,18 +1699,86 @@ class Thing
 
 class ThingDetailsArmor
 {
+	constructor(visible, carryable, weapon)
+	{
+		this.visible = visible;
+		this.carryable = carryable;
+		this.weapon = weapon;
+	}
+
+	static fromBytes(reader)
+	{
+		var armorDetails =
+			ThingDetailsArmorDetails.fromBytes(reader);
+
+		var magical = (reader.readBit() > 0);
+		var onlyOwnerCanUse = (reader.readBit() > 0);
+
+		var pictureId = reader.readIntegerFromBits(6); // ?
+		var visible = new ThingDetailsVisible
+		(
+			pictureId
+		);
+
+		var diesOnUse = reader.readBit() > 0;
+		var weight = reader.readIntegerFromBits(15);
+		var value = reader.readIntegerFromBits(16);
+
+		var carryable = new ThingDetailsCarryable
+		(
+			weight,
+			value,
+			magical,
+			"todo-disappearsWhenDropped",
+			diesOnUse,
+			onlyOwnerCanUse
+		);
+
+		return new ThingDetailsArmor
+		(
+			visible,
+			carryable,
+			armorDetails
+		);
+	}
+}
+
+class ThingDetailsArmorDetails
+{
 	constructor
 	(
 		power,
+		range,
 		attackAdjustmentAsPercentage,
 		chanceOfBreakingAsPercentage
 	)
 	{
 		this.power = power;
+		this.range = range;
 		this.attackAdjustmentAsPercentage =
 			attackAdjustmentAsPercentage;
 		this.chanceOfBreakingAsPercentage =
 			chanceOfBreakingAsPercentage;
+	}
+
+	static fromBytes(reader)
+	{
+		var range = reader.readIntegerFromBits(3) + 2;
+		var power = reader.readIntegerFromBits(5);
+		var attackAdjustmentEncoded =
+			reader.readIntegerFromBits(4);
+		var attackAdjustmentAsPercentage = 
+			attackAdjustmentEncoded * 5 - 35;
+		var chanceOfBreakingAsPercentage =
+			reader.readIntegerFromBits(4);
+
+		return new ThingDetailsArmorDetails
+		(
+			power,
+			range,
+			attackAdjustmentAsPercentage,
+			chanceOfBreakingAsPercentage
+		);
 	}
 }
 
@@ -1766,6 +1871,45 @@ class ThingDetailsStore
 	{}
 }
 
+class ThingDetailsTreasure
+{
+	constructor(visible, carryable)
+	{
+		this.visible = visible;
+		this.carryable = carryable;
+	}
+
+	static fromBytes(reader)
+	{
+		var pictureId = reader.readIntegerFromBits(6); // ?
+		var visible = new ThingDetailsVisible
+		(
+			pictureId
+		);
+
+		var diesOnUse = reader.readBit() > 0;
+		var weight = reader.readIntegerFromBits(15);
+		var value = reader.readIntegerFromBits(16);
+
+		var carryable = new ThingDetailsCarryable
+		(
+			weight,
+			value,
+			null, // magical,
+			"todo-disappearsWhenDropped",
+			null, // diesOnUse,
+			null // onlyOwnerCanUse
+		);
+
+		return new ThingDetailsTreasure
+		(
+			visible,
+			carryable
+		);
+	}
+}
+
+
 class ThingDetailsUsable
 {
 	constructor(durable)
@@ -1817,6 +1961,52 @@ class ThingDetailsWeapon
 			range,
 			attackAdjustmentAsPercentage,
 			chanceOfBreakingAsPercentage
+		);
+	}
+}
+
+class ThingDetailsWeaponMelee
+{
+	constructor(visible, carryable, weapon)
+	{
+		this.visible = visible;
+		this.carryable = carryable;
+		this.weapon = weapon;
+	}
+
+	static fromBytes(reader)
+	{
+		var weapon =
+			ThingDetailsWeapon.fromBytes(reader);
+
+		var magical = (reader.readBit() > 0);
+		var onlyOwnerCanUse = (reader.readBit() > 0);
+
+		var pictureId = reader.readIntegerFromBits(6); // ?
+		var visible = new ThingDetailsVisible
+		(
+			pictureId
+		);
+
+		var diesOnUse = reader.readBit() > 0;
+		var weight = reader.readIntegerFromBits(15);
+		var value = reader.readIntegerFromBits(16);
+
+		var carryable = new ThingDetailsCarryable
+		(
+			weight,
+			value,
+			magical,
+			"todo-disappearsWhenDropped",
+			diesOnUse,
+			onlyOwnerCanUse
+		);
+
+		return new ThingDetailsWeaponMelee
+		(
+			visible,
+			carryable,
+			weapon
 		);
 	}
 }
@@ -1905,11 +2095,11 @@ class ThingType_Instances
 			new ThingType(id, name, detailsFromBytes);
 
 		this.RoomFloor 			= tt(0, "Room Floor",		this.detailsFromBytes_Todo);
-		this.Treasure 			= tt(1, "Treasure", 		this.detailsFromBytes_Todo);
+		this.Treasure 			= tt(1, "Treasure", 		this.detailsFromBytes_Treasure);
 		this.MagicItem 			= tt(2, "Magic Item", 		this.detailsFromBytes_Todo);
 		this.MissileWeapon 		= tt(3, "Missile Weapon", 	this.detailsFromBytes_MissileWeapon);
-		this.MeleeWeapon 		= tt(4, "Melee Weapon", 	this.detailsFromBytes_Todo);
-		this.Armor 				= tt(5, "Armor", 			this.detailsFromBytes_Todo);
+		this.MeleeWeapon 		= tt(4, "Melee Weapon", 	this.detailsFromBytes_MeleeWeapon);
+		this.Armor 				= tt(5, "Armor", 			this.detailsFromBytes_Armor);
 		this.MagicSpell 		= tt(6, "Magic Spell", 		this.detailsFromBytes_Todo);
 		this.Portal 			= tt(7, "Portal", 			this.detailsFromBytes_Todo);
 		this.Space 				= tt(8, "Space", 			this.detailsFromBytes_Todo);
@@ -1948,10 +2138,26 @@ class ThingType_Instances
 		return "todo";
 	}
 
+	detailsFromBytes_Armor(reader)
+	{
+		return ThingDetailsArmor.fromBytes(reader);
+	}
+
+	detailsFromBytes_MeleeWeapon(reader)
+	{
+		return ThingDetailsWeaponMelee.fromBytes(reader);
+	}
+
 	detailsFromBytes_MissileWeapon(reader)
 	{
 		return ThingDetailsWeaponMissile.fromBytes(reader);
 	}
+
+	detailsFromBytes_Treasure(reader)
+	{
+		return ThingDetailsTreasure.fromBytes(reader);
+	}
+
 }
 
 class WorldMap
@@ -1998,7 +2204,7 @@ class WorldMap
 		var d = document;
 
 		var mapSizeInCells = this.sizeInCells;
-		var pictureSizeInPixels = Picture.sizeInPixels();
+		var pictureSizeInPixels = Picture.sizeInCells();
 		var cellSizeInPixels = pictureSizeInPixels;
 		var mapSizeInPixels =
 			mapSizeInCells
